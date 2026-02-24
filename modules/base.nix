@@ -34,6 +34,7 @@
     bat       # syntax-highlighted cat
     fzf       # fuzzy finder
     jq        # JSON processing
+    imv       # image viewer (Wayland-native)
 
     # Network tools
     iproute2
@@ -41,7 +42,6 @@
     iw
     wirelesstools  # iwconfig
     wpa_supplicant  # required by NetworkManager for WiFi
-    openssh
 
     # Hardware diagnostics
     pciutils  # lspci
@@ -50,7 +50,21 @@
     # Development basics
     gnumake
     gcc
-    python3
+    (python3.withPackages (ps: with ps; [
+      # Data & visualization
+      matplotlib
+      numpy
+      pandas
+      pillow
+
+      # GUI & apps
+      tkinter
+
+      # Utilities
+      requests
+      pyyaml
+      rich        # pretty terminal output
+    ]))
   ];
 
   # Enable nix flakes
