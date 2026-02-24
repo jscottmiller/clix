@@ -24,9 +24,16 @@
     htop
     file
     tree
+    less
     unzip
+    zip
+    gnutar
+    gzip
     ripgrep
     fd
+    bat       # syntax-highlighted cat
+    fzf       # fuzzy finder
+    jq        # JSON processing
 
     # Network tools
     iproute2
@@ -34,6 +41,7 @@
     iw
     wirelesstools  # iwconfig
     wpa_supplicant  # required by NetworkManager for WiFi
+    openssh
 
     # Hardware diagnostics
     pciutils  # lspci
@@ -42,6 +50,7 @@
     # Development basics
     gnumake
     gcc
+    python3
   ];
 
   # Enable nix flakes
