@@ -246,13 +246,18 @@ EOF
     echo ""
 
     # Check if already authenticated
-    if [ -f "$HOME/.claude/credentials.json" ]; then
-      exec claude --dangerously-skip-permissions
-    else
+    if [ ! -f "$HOME/.claude/credentials.json" ]; then
       echo "First time setup: You'll need to authenticate with Claude."
       echo ""
-      exec claude --dangerously-skip-permissions
     fi
+
+    # Run Claude in a loop - restarts if it exits or is closed
+    while true; do
+      claude --dangerously-skip-permissions
+      echo ""
+      echo "Claude exited. Restarting in 2 seconds... (Ctrl+C to stop)"
+      sleep 2
+    done
   '';
 in
 {

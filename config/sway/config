@@ -41,10 +41,11 @@ input type:touchpad {
 # Claude Terminal - Docked Left
 # ─────────────────────────────────────────
 
-# Claude terminal stays on the left, takes 30% width
+# Claude terminal stays on the left, takes 30% width, visible on all workspaces
 for_window [app_id="claude-terminal"] {
     move left
     resize set width 30 ppt
+    sticky enable
 }
 
 # ─────────────────────────────────────────
