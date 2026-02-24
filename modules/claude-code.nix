@@ -268,23 +268,16 @@ in
     jq         # JSON processing (useful for sway queries)
 
     # UI interaction tools for computer-use capabilities
-    ydotool    # Mouse/keyboard simulation (works on Wayland)
     wtype      # Wayland keyboard input simulation
     wlrctl     # Wayland window management
+    # ydotool installed via programs.ydotool.enable below
   ];
 
-  # ydotool daemon for input simulation
-  systemd.services.ydotoold = {
-    description = "ydotool daemon";
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      ExecStart = "${pkgs.ydotool}/bin/ydotoold";
-      Restart = "always";
-    };
-  };
+  # ydotool for input simulation (handles daemon + socket permissions)
+  programs.ydotool.enable = true;
 
   # Grant clix user access to ydotool socket
-  users.users.clix.extraGroups = [ "input" ];
+  users.users.clix.extraGroups = [ "ydotool" ];
 
   # Deploy welcome script
   environment.etc."clix-welcome.sh" = {
