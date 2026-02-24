@@ -38,14 +38,24 @@ input type:touchpad {
 }
 
 # ─────────────────────────────────────────
+# Claude Terminal - Docked Left
+# ─────────────────────────────────────────
+
+# Claude terminal stays on the left, takes 30% width
+for_window [app_id="claude-terminal"] {
+    move left
+    resize set width 30 ppt
+}
+
+# ─────────────────────────────────────────
 # Key Bindings
 # ─────────────────────────────────────────
 
 # Start terminal
 bindsym $mod+Return exec $term
 
-# Start Claude Code terminal
-bindsym $mod+c exec $term -e /etc/clix-welcome.sh
+# Start Claude Code terminal (with custom app_id for window rules)
+bindsym $mod+c exec $term --app-id=claude-terminal -e /etc/clix-welcome.sh
 
 # Kill focused window
 bindsym $mod+Shift+q kill
@@ -195,8 +205,8 @@ exec /run/current-system/sw/libexec/polkit-gnome-authentication-agent-1
 # Network manager applet
 exec nm-applet --indicator
 
-# Auto-start Claude Code welcome terminal
-exec $term -e /etc/clix-welcome.sh
+# Auto-start Claude Code welcome terminal (docked left)
+exec $term --app-id=claude-terminal -e /etc/clix-welcome.sh
 
 # Include additional config files
 include /etc/sway/config.d/*
