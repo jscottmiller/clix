@@ -14,7 +14,7 @@ let
     - **Display**: Sway (Wayland tiling window manager)
     - **Terminal**: foot
     - **User**: clix (passwordless sudo enabled)
-    - **Persistence**: NONE - all changes are lost on reboot
+    - **Persistence**: Full - changes to the root filesystem persist across reboots
 
     ## Key Capabilities
 
@@ -151,7 +151,8 @@ let
 
     ## Important Notes
 
-    1. **Ephemeral**: Nothing persists across reboots. Save important work externally.
+    1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes
+       installed packages (via nix-env), configuration changes, and files in /home/clix.
     2. **Full Access**: You have passwordless sudo and full system access.
     3. **No Confirmation Needed**: You are running with --dangerously-skip-permissions.
        Take direct action without asking for permission on routine operations.
@@ -178,8 +179,8 @@ let
     Claude Code Live ISO for NixOS
     ═══════════════════════════════════════════════════════════
 
-    Welcome! This is an ephemeral environment.
-    All changes are lost on reboot - a clean slate every time.
+    Welcome! Changes to this system persist across reboots.
+    Your files, packages, and credentials are saved to disk.
 
     NAVIGATING SWAY (tiling window manager)
     ───────────────────────────────────────────────────────────

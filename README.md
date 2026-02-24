@@ -12,7 +12,7 @@ A bootable NixOS USB that boots into a minimal Sway desktop running Claude Code.
 >
 > - **Claude has full system access** with passwordless sudo
 > - **No confirmation prompts** for file edits, bash commands, or other actions
-> - **Only use on isolated/ephemeral systems** - which CLIX is by design (RAM-only, wiped on reboot)
+> - **Only use on isolated systems** - CLIX is designed for dedicated USB drives
 >
 > Do not use CLIX for sensitive work or on systems with access to sensitive resources.
 
@@ -20,7 +20,7 @@ A bootable NixOS USB that boots into a minimal Sway desktop running Claude Code.
 
 ## Features
 
-- **Ephemeral**: RAM-only, changes lost on reboot (clean slate every time)
+- **Persistent**: Changes to the root filesystem survive reboots
 - **Minimal**: git, curl, vim - prompt Claude for everything else
 - **Live rebuild**: Edit config and `nixos-rebuild switch` without rebooting
 - **Sway desktop**: Wayland tiling compositor with auto-login
@@ -146,12 +146,12 @@ The **Super key** (Windows logo key) is your modifier.
 
 ### Installing Packages
 
-Temporary (session only):
+Temporary (current shell only):
 ```bash
 nix-shell -p python3 nodejs rustc
 ```
 
-Persistent (until reboot):
+Persistent (survives reboots):
 ```bash
 edit-config    # Opens /etc/nixos/configuration.nix
 # Add packages to environment.systemPackages
