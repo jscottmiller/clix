@@ -48,7 +48,7 @@ Nix installs to `/nix` and doesn't touch your system packages. To uninstall late
 ### Build the Disk Image
 
 ```bash
-./scripts/build-iso.sh
+./scripts/build-image.sh
 ```
 
 Or directly:
@@ -173,7 +173,7 @@ clix/
 │   ├── sway/config           # Sway keybindings
 │   └── waybar/               # Status bar config
 └── scripts/
-    ├── build-iso.sh          # Build disk image (or ISO with --iso)
+    ├── build-image.sh        # Build disk image (or ISO with --iso)
     ├── test-vm.sh            # Test in QEMU
     └── write-usb.sh          # Write to USB drive
 ```
@@ -193,7 +193,7 @@ Edit the modules in `modules/` to customize:
 If you prefer an ISO (e.g., for CD/DVD or compatibility):
 
 ```bash
-./scripts/build-iso.sh --iso
+./scripts/build-image.sh --iso
 # or
 nix build .#iso
 ```
