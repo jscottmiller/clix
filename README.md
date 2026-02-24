@@ -4,6 +4,20 @@
 
 A bootable NixOS USB that boots into a minimal Sway desktop running Claude Code. Users "prompt their desktop into existence."
 
+---
+
+> **WARNING: CLIX runs Claude Code with `--dangerously-skip-permissions`**
+>
+> This means Claude can execute ANY command without asking for confirmation - including installing software, modifying files, running scripts, and accessing the network. This is intentional for the "prompt your desktop into existence" experience, but you should understand the implications:
+>
+> - **Claude has full system access** with passwordless sudo
+> - **No confirmation prompts** for file edits, bash commands, or other actions
+> - **Only use on isolated/ephemeral systems** - which CLIX is by design (RAM-only, wiped on reboot)
+>
+> Do not use CLIX for sensitive work or on systems with access to sensitive resources.
+
+---
+
 ## Features
 
 - **Ephemeral**: RAM-only, changes lost on reboot (clean slate every time)
