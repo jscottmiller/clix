@@ -86,11 +86,25 @@ let
     swaymsg workspace 2
     ```
 
+    ### Python Environment
+    A full Python 3 environment is available with useful libraries:
+    - **matplotlib** - plotting and visualization
+    - **numpy** - numerical computing
+    - **pandas** - data manipulation and analysis
+    - **pillow** - image processing
+    - **tkinter** - GUI applications
+    - **requests** - HTTP client
+    - **pyyaml** - YAML parsing
+    - **rich** - beautiful terminal output
+
+    Use `imv` to view generated images: `imv /tmp/plot.png`
+
     ### Screenshot Tools
     You have access to screenshot utilities for visual context:
     - `grim` - capture screenshots (full screen or region)
     - `slurp` - interactively select a region
     - `wl-copy` / `wl-paste` - clipboard operations
+    - `imv` - view images (Wayland-native)
 
     **Examples:**
     ```bash
