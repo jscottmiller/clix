@@ -1,0 +1,56 @@
+name: Build CLIX Image
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    tags:
+      - 'v*'  # Build on version tags
+
+jobs:
+  build-x86:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          # Remove unnecessary tools to free space for the build
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          df -h
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build image
+        run: nix build .#image --print-build-logs
+
+      - name: Compress image
+        run: |
+          # Compress with zstd for good ratio + speed
+          zstd -T0 -19 result/clix.img -o clix-x86_64.img.zst
+          ls -lh clix-x86_64.img.zst
+          # Show uncompressed size for reference
+          ls -lh result/clix.img
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clix-x86_64
+          path: clix-x86_64.img.zst
+          retention-days: 7
+          compression-level: 0  # Already compressed with zstd
+
+      # For tagged releases, also create a GitHub release
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: clix-x86_64.img.zst
+          generate_release_notes: true
