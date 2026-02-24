@@ -1,0 +1,16 @@
+[connection]
+id=StaticEthernet
+uuid=abcdef12-3456-7890-abcd-ef1234567890
+type=ethernet
+autoconnect=true
+
+[ethernet]
+
+[ipv4]
+method=manual
+addresses=192.168.1.100/24
+gateway=192.168.1.1
+dns=8.8.8.8;8.8.4.4;
+
+[ipv6]
+method=auto

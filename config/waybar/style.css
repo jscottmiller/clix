@@ -1,0 +1,138 @@
+/* CLIX Waybar Style - Dracula-inspired dark theme */
+
+* {
+    font-family: "FiraCode Nerd Font", "Noto Sans", sans-serif;
+    font-size: 13px;
+    min-height: 0;
+}
+
+window#waybar {
+    background-color: rgba(40, 42, 54, 0.95);
+    color: #f8f8f2;
+    border-bottom: 2px solid #6272a4;
+}
+
+#workspaces button {
+    padding: 0 8px;
+    background-color: transparent;
+    color: #f8f8f2;
+    border: none;
+    border-radius: 0;
+}
+
+#workspaces button:hover {
+    background: rgba(98, 114, 164, 0.4);
+}
+
+#workspaces button.focused {
+    background-color: #6272a4;
+    color: #f8f8f2;
+}
+
+#workspaces button.urgent {
+    background-color: #ff5555;
+}
+
+#mode {
+    background-color: #ff79c6;
+    color: #282a36;
+    padding: 0 10px;
+    font-weight: bold;
+}
+
+#window {
+    color: #bd93f9;
+}
+
+#clock,
+#battery,
+#cpu,
+#memory,
+#network,
+#pulseaudio,
+#tray {
+    padding: 0 10px;
+    margin: 0 4px;
+}
+
+#clock {
+    background-color: #6272a4;
+    color: #f8f8f2;
+    border-radius: 4px;
+}
+
+#battery {
+    background-color: #50fa7b;
+    color: #282a36;
+    border-radius: 4px;
+}
+
+#battery.charging, #battery.plugged {
+    background-color: #50fa7b;
+    color: #282a36;
+}
+
+#battery.warning:not(.charging) {
+    background-color: #f1fa8c;
+    color: #282a36;
+}
+
+#battery.critical:not(.charging) {
+    background-color: #ff5555;
+    color: #f8f8f2;
+    animation: blink 0.5s linear infinite alternate;
+}
+
+@keyframes blink {
+    to {
+        background-color: #f8f8f2;
+        color: #ff5555;
+    }
+}
+
+#cpu {
+    background-color: #8be9fd;
+    color: #282a36;
+    border-radius: 4px;
+}
+
+#memory {
+    background-color: #ff79c6;
+    color: #282a36;
+    border-radius: 4px;
+}
+
+#network {
+    background-color: #bd93f9;
+    color: #282a36;
+    border-radius: 4px;
+}
+
+#network.disconnected {
+    background-color: #ff5555;
+    color: #f8f8f2;
+}
+
+#pulseaudio {
+    background-color: #f1fa8c;
+    color: #282a36;
+    border-radius: 4px;
+}
+
+#pulseaudio.muted {
+    background-color: #44475a;
+    color: #f8f8f2;
+}
+
+#tray {
+    background-color: transparent;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: #ff5555;
+}
