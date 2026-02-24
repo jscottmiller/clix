@@ -149,6 +149,40 @@ let
     - `nmcli device wifi connect <SSID> password <pass>` - connect to WiFi
     - `nmtui` - text UI for network configuration
 
+    ### Installing to Local Disk
+    CLIX can be installed to an internal drive. Tools available:
+    - `parted` / `sgdisk` - partition the target disk
+    - `mkfs.vfat` - format EFI partition (FAT32)
+    - `mkfs.ext4` - format root partition
+    - `nixos-generate-config` - generate hardware config
+    - `nixos-install` - install NixOS to mounted root
+
+    **Typical workflow:**
+    ```bash
+    # 1. Identify target disk
+    lsblk
+
+    # 2. Partition (example: /dev/nvme0n1)
+    sudo parted /dev/nvme0n1 -- mklabel gpt
+    sudo parted /dev/nvme0n1 -- mkpart ESP fat32 1MiB 512MiB
+    sudo parted /dev/nvme0n1 -- set 1 esp on
+    sudo parted /dev/nvme0n1 -- mkpart primary 512MiB 100%
+
+    # 3. Format
+    sudo mkfs.fat -F 32 -n ESP /dev/nvme0n1p1
+    sudo mkfs.ext4 -L nixos /dev/nvme0n1p2
+
+    # 4. Mount
+    sudo mount /dev/nvme0n1p2 /mnt
+    sudo mkdir -p /mnt/boot
+    sudo mount /dev/nvme0n1p1 /mnt/boot
+
+    # 5. Generate and install
+    sudo nixos-generate-config --root /mnt
+    # Edit /mnt/etc/nixos/configuration.nix as needed
+    sudo nixos-install
+    ```
+
     ## Important Notes
 
     1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes

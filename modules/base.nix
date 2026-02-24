@@ -47,6 +47,13 @@
     pciutils  # lspci
     usbutils  # lsusb
 
+    # Disk and installation tools
+    parted          # partition editor
+    gptfdisk        # GPT tools (sgdisk, gdisk)
+    dosfstools      # FAT32 formatting (mkfs.vfat)
+    e2fsprogs       # ext4 formatting (mkfs.ext4)
+    nixos-install-tools  # nixos-install, nixos-generate-config
+
     # Development basics
     gnumake
     gcc
