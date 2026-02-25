@@ -20,11 +20,13 @@ A bootable NixOS USB that boots into a minimal Sway desktop running Claude Code.
 
 ## Features
 
+- **Dynamic first-boot setup**: Wizard partitions your USB based on available space
+- **Encrypted /home**: Optional LUKS encryption for credentials and data
 - **Persistent**: Changes to the root filesystem survive reboots
 - **Minimal**: git, curl, vim - prompt Claude for everything else
 - **Live rebuild**: Edit config and `nixos-rebuild switch` without rebooting
 - **Sway desktop**: Wayland tiling compositor with auto-login
-- **Pre-configured data partition**: Add WiFi and Claude credentials before booting
+- **Data partition**: Add WiFi and Claude credentials via Windows-visible FAT32 partition
 
 ## Quick Start
 
@@ -81,9 +83,9 @@ CLIX_MEMORY=8G CLIX_CPUS=4 ./scripts/test-vm.sh
 
 ## Pre-configuring WiFi and Claude Credentials
 
-The disk image includes a `CLIX-DATA` partition (FAT32) that you can mount on any computer (Windows, Mac, Linux) to add configuration before booting.
+After the first-boot wizard runs, your USB will have a `CLIX-DATA` partition (FAT32) that you can mount on any computer (Windows, Mac, Linux) to add configuration.
 
-After writing to USB, mount the `CLIX-DATA` partition and add:
+Mount the `CLIX-DATA` partition and add:
 
 ### WiFi Regulatory Domain (Required)
 
@@ -121,6 +123,36 @@ method=auto
 ### Claude Authentication
 
 On first boot, run `claude` and sign in through Firefox. Your credentials will be saved for future sessions.
+
+## First Boot Setup
+
+On first boot, after the desktop loads, you'll see a setup wizard that:
+
+1. **Detects free space**: Shows available space on your USB drive
+2. **Partition options**:
+   - **Recommended**: 4GB CLIX-DATA + rest for CLIX-HOME (encrypted)
+   - **Custom**: Choose sizes and encryption preference
+3. **Password setup**: If encrypting, enter a strong password (8+ characters)
+4. **Partition creation**: Creates and formats partitions
+5. **Done**: System is ready to use
+
+### Subsequent Boots
+
+If you chose encryption:
+- You'll be prompted for your password on each boot
+- After entering the password, the system boots normally
+
+If you skipped encryption, you can encrypt later with:
+```bash
+sudo clix-encrypt-home
+```
+
+### Manual Setup
+
+If you skipped setup on first boot, run:
+```bash
+sudo clix-setup
+```
 
 ## Usage
 
@@ -168,7 +200,9 @@ clix/
 │   ├── sway.nix              # Sway + greetd auto-login
 │   ├── claude-code.nix       # Claude Code + welcome script
 │   ├── live-system.nix       # Live rebuild support
-│   └── data-partition.nix    # CLIX-DATA partition import
+│   ├── data-partition.nix    # CLIX-DATA partition import
+│   ├── encrypted-home.nix    # LUKS encryption for /home
+│   └── first-boot-setup.nix  # First-boot encryption wizard
 ├── config/
 │   ├── sway/config           # Sway keybindings
 │   └── waybar/               # Status bar config
@@ -187,6 +221,8 @@ Edit the modules in `modules/` to customize:
 - `claude-code.nix`: Welcome message, auto-start behavior
 - `live-system.nix`: Live rebuild configuration
 - `data-partition.nix`: Data import behavior
+- `encrypted-home.nix`: LUKS encryption settings
+- `first-boot-setup.nix`: First-boot wizard behavior
 
 ## Building ISO Instead
 
@@ -199,6 +235,28 @@ nix build .#iso
 ```
 
 Note: The ISO doesn't include the data partition feature.
+
+## Partition Layout
+
+The CLIX disk image ships with two partitions. The first-boot wizard creates two more.
+
+### After Writing to USB
+
+| # | Name | Type | Purpose |
+|---|------|------|---------|
+| 1 | ESP | FAT32 | EFI boot partition |
+| 2 | nixos | ext4 | System root, /nix/store |
+
+### After First Boot Setup
+
+| # | Name | Type | Purpose |
+|---|------|------|---------|
+| 1 | ESP | FAT32 | EFI boot partition |
+| 2 | nixos | ext4 | System root, /nix/store |
+| 3 | CLIX-DATA | FAT32 | Config staging (Windows-visible) |
+| 4 | CLIX-HOME | ext4 or LUKS | User home (optionally encrypted) |
+
+Partition sizes are chosen during first-boot setup based on available USB space.
 
 ## License
 

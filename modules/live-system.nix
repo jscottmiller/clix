@@ -139,6 +139,13 @@ in
       "console=ttyS0,115200"  # Serial console for VM debugging
       "console=tty0"
     ];
+
+    # Initrd settings for LUKS support (encrypted /home)
+    # Note: LUKS modules are added in encrypted-home.nix
+    initrd = {
+      # Use systemd in initrd for better LUKS password prompts
+      systemd.enable = true;
+    };
   };
 
   # Enable memory compression for better performance

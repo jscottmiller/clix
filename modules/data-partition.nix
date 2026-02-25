@@ -1,9 +1,11 @@
 { config, pkgs, lib, ... }:
 
 # This module handles the CLIX-DATA partition:
-# - Mounts it on boot
+# - Mounts it on boot (if it exists)
 # - Imports WiFi credentials to NetworkManager
 # - Imports Claude credentials to user home
+# Note: CLIX-DATA is created by first-boot-setup.nix wizard
+# On first boot before setup, this service simply exits gracefully
 
 let
   importScript = pkgs.writeShellScript "clix-import-data" ''
@@ -13,31 +15,18 @@ let
 
     echo "CLIX: Looking for data partition..."
 
-    # Find the data partition by looking at the boot device
-    # Layout: partition 1 = CLIX-DATA, partition 2 = EFI, partition 3 = root
-    # This is more reliable than blkid label lookup during early boot
+    # Find CLIX-DATA partition by label
+    # This partition is created by the first-boot wizard
+    DATA_DEV=$(blkid -L CLIX-DATA 2>/dev/null || true)
 
-    # Get the root device and strip partition number to find base device
-    ROOT_DEV=$(findmnt -n -o SOURCE /)
-    echo "CLIX: Root device is $ROOT_DEV"
-
-    # Handle both /dev/sdX3 and /dev/nvme0n1p3 style names
-    if [[ "$ROOT_DEV" =~ ^/dev/nvme ]]; then
-      BASE_DEV=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
-      DATA_DEV="''${BASE_DEV}p1"
-    elif [[ "$ROOT_DEV" =~ ^/dev/sd ]]; then
-      BASE_DEV=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
-      DATA_DEV="''${BASE_DEV}1"
-    else
-      echo "CLIX: Unknown device naming scheme for $ROOT_DEV, trying blkid fallback..."
-      DATA_DEV=$(blkid -L CLIX-DATA 2>/dev/null || true)
+    if [ -z "$DATA_DEV" ]; then
+      echo "CLIX: CLIX-DATA partition not found (first boot?), skipping import"
+      exit 0
     fi
 
-    echo "CLIX: Looking for data partition at $DATA_DEV"
-
-    # Verify the partition exists and is FAT
+    # Verify the partition exists
     if [ ! -b "$DATA_DEV" ]; then
-      echo "CLIX: Data partition $DATA_DEV not found, skipping import"
+      echo "CLIX: Data partition $DATA_DEV not a block device, skipping import"
       exit 0
     fi
 
@@ -89,12 +78,14 @@ let
   '';
 in
 {
-  # Run import script early in boot
+  # Run import script early in boot (after /home is mounted, if available)
   systemd.services.clix-import-data = {
     description = "Import CLIX data from data partition";
     wantedBy = [ "multi-user.target" ];
     before = [ "network-online.target" "display-manager.service" ];
-    after = [ "local-fs.target" ];
+    # Wait for /home mount attempt (may not exist on first boot)
+    after = [ "local-fs.target" "clix-mount-home.service" ];
+    wants = [ "clix-mount-home.service" ];  # soft dependency - don't fail if missing
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${importScript}";
