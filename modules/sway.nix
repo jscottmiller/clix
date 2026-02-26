@@ -32,7 +32,73 @@ let
   '';
 in
 {
-  # Greetd with sway - runs as setup user
+  # Unlock encrypted home partition at boot (only after first-boot setup)
+  systemd.services.clix-unlock-home = {
+    description = "Unlock CLIX encrypted home";
+    wantedBy = [ "local-fs.target" ];
+    before = [ "local-fs.target" ];
+    after = [ "systemd-udev-settle.service" ];
+    unitConfig = {
+      ConditionPathExists = "/etc/clix/.home-encrypted";
+      DefaultDependencies = false;
+    };
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      StandardInput = "tty";
+      StandardOutput = "tty";
+      TTYPath = "/dev/tty1";
+      TTYReset = true;
+      TTYVHangup = true;
+    };
+    path = [ pkgs.coreutils pkgs.cryptsetup pkgs.util-linux pkgs.ncurses ];
+    script = ''
+      # Check if already unlocked
+      if [ -b /dev/mapper/clix-home ]; then
+        mount /dev/mapper/clix-home /home 2>/dev/null || true
+        exit 0
+      fi
+
+      # Get the home device
+      if [ ! -f /etc/clix/home-device ]; then
+        exit 0
+      fi
+
+      HOME_DEV=$(cat /etc/clix/home-device)
+
+      if [ ! -b "$HOME_DEV" ]; then
+        echo "Home device $HOME_DEV not found"
+        exit 1
+      fi
+
+      clear
+      echo ""
+      echo "  ╔═══════════════════════════════════════╗"
+      echo "  ║           CLIX - Unlock Home          ║"
+      echo "  ╚═══════════════════════════════════════╝"
+      echo ""
+
+      for attempt in 1 2 3; do
+        echo -n "  Enter encryption password: "
+        read -s PASSWORD
+        echo ""
+
+        if echo "$PASSWORD" | cryptsetup open "$HOME_DEV" clix-home --key-file=-; then
+          echo "  Unlocked!"
+          mount /dev/mapper/clix-home /home
+          sleep 1
+          exit 0
+        else
+          echo "  Incorrect password. Attempt $attempt of 3."
+        fi
+      done
+
+      echo "  Too many failed attempts."
+      exit 1
+    '';
+  };
+
+  # Greetd - provide default config, overwritten by clix-greetd-config service
   services.greetd = {
     enable = true;
     settings = {
@@ -41,6 +107,37 @@ in
         user = "setup";
       };
     };
+  };
+
+  # Generate greetd config at boot based on setup state
+  systemd.services.clix-greetd-config = {
+    description = "Configure greetd user";
+    wantedBy = [ "greetd.service" ];
+    before = [ "greetd.service" ];
+    # No 'after' dependency - this needs to run on first boot too
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [ pkgs.coreutils ];
+    script = ''
+      if [ -f /etc/clix/user ]; then
+        LOGIN_USER=$(cat /etc/clix/user)
+      else
+        LOGIN_USER="setup"
+      fi
+
+      mkdir -p /etc/greetd
+      cat > /etc/greetd/config.toml << EOF
+[terminal]
+vt = 1
+
+[default_session]
+command = "${swayStartScript}"
+user = "$LOGIN_USER"
+EOF
+      echo "Configured greetd for user: $LOGIN_USER"
+    '';
   };
 
   # Enable Sway
