@@ -1,6 +1,48 @@
 { config, pkgs, lib, self, ... }:
 
+let
+  # Sway start script with proper environment and logging
+  swayStartScript = pkgs.writeShellScript "clix-start-sway" ''
+    # Log everything for debugging
+    exec > /tmp/sway-start.log 2>&1
+    echo "=== Starting sway at $(date) ==="
+    echo "User: $(whoami)"
+    echo "Home: $HOME"
+    echo "XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
+
+    # Ensure XDG_RUNTIME_DIR exists
+    if [ -z "$XDG_RUNTIME_DIR" ]; then
+      export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+      echo "Set XDG_RUNTIME_DIR to $XDG_RUNTIME_DIR"
+    fi
+
+    # Wayland/Sway environment
+    export XDG_SESSION_TYPE=wayland
+    export XDG_CURRENT_DESKTOP=sway
+    export MOZ_ENABLE_WAYLAND=1
+
+    # Ensure home directory exists
+    if [ ! -d "$HOME" ]; then
+      echo "Creating home directory $HOME"
+      mkdir -p "$HOME"
+    fi
+
+    echo "Starting sway..."
+    exec dbus-run-session ${pkgs.sway}/bin/sway -d 2>&1
+  '';
+in
 {
+  # Greetd with sway - runs as setup user
+  services.greetd = {
+    enable = true;
+    settings = {
+      default_session = {
+        command = "${swayStartScript}";
+        user = "setup";
+      };
+    };
+  };
+
   # Enable Sway
   programs.sway = {
     enable = true;
@@ -30,21 +72,6 @@
     extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
   };
 
-  # Auto-login via greetd
-  services.greetd = {
-    enable = true;
-    settings = {
-      default_session = {
-        command = "${pkgs.sway}/bin/sway";
-        user = "clix";
-      };
-      initial_session = {
-        command = "${pkgs.sway}/bin/sway";
-        user = "clix";
-      };
-    };
-  };
-
   # Disable other display managers
   services.xserver.enable = false;
 
@@ -62,24 +89,42 @@
   environment.etc."xdg/waybar/config".source = "${self}/config/waybar/config";
   environment.etc."xdg/waybar/style.css".source = "${self}/config/waybar/style.css";
 
+  # Foot terminal config (larger font)
+  environment.etc."xdg/foot/foot.ini".source = "${self}/config/foot/foot.ini";
+
   # Sway reads from /etc/sway/config if XDG_CONFIG_HOME/sway/config doesn't exist
-  # But we also need to set up the user config directory
+  # This activation script runs on boot to set up user config directories
+  # It handles both the setup user (first boot) and the real user (after setup)
   system.activationScripts.swayConfig = ''
-    mkdir -p /home/clix/.config/sway
-    mkdir -p /home/clix/.config/waybar
+    # Determine the target user
+    if [ -f /etc/clix/user ]; then
+      TARGET_USER=$(cat /etc/clix/user)
+    else
+      TARGET_USER="setup"
+    fi
+
+    # Get the user's home directory
+    USER_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+    if [ -z "$USER_HOME" ] || [ ! -d "$USER_HOME" ]; then
+      USER_HOME="/home/$TARGET_USER"
+    fi
+
+    # Create config directories
+    mkdir -p "$USER_HOME/.config/sway"
+    mkdir -p "$USER_HOME/.config/waybar"
 
     # Link to system configs if user hasn't customized
-    if [ ! -e /home/clix/.config/sway/config ]; then
-      ln -sf /etc/sway/config /home/clix/.config/sway/config
+    if [ ! -e "$USER_HOME/.config/sway/config" ]; then
+      ln -sf /etc/sway/config "$USER_HOME/.config/sway/config"
     fi
-    if [ ! -e /home/clix/.config/waybar/config ]; then
-      ln -sf /etc/xdg/waybar/config /home/clix/.config/waybar/config
+    if [ ! -e "$USER_HOME/.config/waybar/config" ]; then
+      ln -sf /etc/xdg/waybar/config "$USER_HOME/.config/waybar/config"
     fi
-    if [ ! -e /home/clix/.config/waybar/style.css ]; then
-      ln -sf /etc/xdg/waybar/style.css /home/clix/.config/waybar/style.css
+    if [ ! -e "$USER_HOME/.config/waybar/style.css" ]; then
+      ln -sf /etc/xdg/waybar/style.css "$USER_HOME/.config/waybar/style.css"
     fi
 
-    chown -R clix:users /home/clix/.config
+    chown -R "$TARGET_USER:users" "$USER_HOME/.config" 2>/dev/null || true
   '';
 
   # Polkit for authentication dialogs

@@ -1,17 +1,18 @@
 { config, pkgs, lib, ... }:
 
-# This module handles the CLIX-HOME partition:
+# This module handles the encrypted /home partition:
 # - On first boot: partition doesn't exist yet (first-boot-setup.nix creates it)
-# - After setup: mounts /home from CLIX-HOME (encrypted or plain)
-# - Supports both LUKS encrypted and unencrypted states
+# - After setup: prompts for password, unlocks LUKS, mounts /home
+# - Runs before display manager so autologin works after unlock
 
 let
-  # Script to mount /home if CLIX-HOME partition exists
+  # Script to unlock and mount encrypted /home
   mountHomeScript = pkgs.writeShellScript "clix-mount-home" ''
     set -e
-    export PATH="${lib.makeBinPath (with pkgs; [ util-linux cryptsetup coreutils ])}:$PATH"
+    export PATH="${lib.makeBinPath (with pkgs; [ util-linux cryptsetup coreutils systemd ])}:$PATH"
 
     MOUNT_POINT="/home"
+    MAPPER_NAME="clix-home"
 
     # Check if already mounted
     if mountpoint -q "$MOUNT_POINT"; then
@@ -19,67 +20,90 @@ let
       exit 0
     fi
 
-    # Try to find CLIX-HOME partition by label
-    # It might be CLIX-HOME (unencrypted) or the underlying device for encrypted
-    HOME_PART=$(blkid -L CLIX-HOME 2>/dev/null || true)
-
-    # If not found, check if we have an encrypted home (CLIX-HOME-FS inside LUKS)
-    if [ -z "$HOME_PART" ]; then
-      # Look for any partition that might be LUKS-encrypted CLIX-HOME
-      # by checking for CLIX-HOME-FS label on mapper devices
-      if [ -b "/dev/mapper/clix-home" ]; then
-        echo "LUKS container already open, mounting..."
-        mount /dev/mapper/clix-home "$MOUNT_POINT"
-        exit 0
-      fi
-
-      # No CLIX-HOME partition found - first boot, wizard will create it
-      echo "CLIX-HOME partition not found - waiting for first-boot setup"
+    # Check if setup has been completed
+    if [ ! -f /etc/clix/.setup-complete ]; then
+      echo "CLIX setup not complete - /home will not be mounted"
+      echo "First-boot wizard will run after graphical session starts"
       exit 0
     fi
 
-    # Check if it's a LUKS container
-    if cryptsetup isLuks "$HOME_PART" 2>/dev/null; then
-      echo "CLIX-HOME is encrypted, opening LUKS container..."
+    # Get the home partition device
+    if [ ! -f /etc/clix/home-device ]; then
+      echo "ERROR: /etc/clix/home-device not found"
+      echo "Setup may be incomplete - try running clix-setup"
+      exit 1
+    fi
 
-      # Check if already unlocked
-      if [ ! -b "/dev/mapper/clix-home" ]; then
-        # Prompt for password via systemd-ask-password
-        ${pkgs.systemd}/bin/systemd-ask-password --timeout=0 "Enter passphrase for CLIX-HOME:" | \
-          cryptsetup open "$HOME_PART" clix-home -
+    HOME_DEV=$(cat /etc/clix/home-device)
+
+    if [ ! -b "$HOME_DEV" ]; then
+      echo "ERROR: Home device $HOME_DEV does not exist"
+      exit 1
+    fi
+
+    echo "CLIX: Unlocking encrypted home partition..."
+
+    # Check if LUKS container is already open
+    if [ ! -b "/dev/mapper/$MAPPER_NAME" ]; then
+      # Prompt for password
+      # Use systemd-ask-password which integrates with plymouth if available
+      PASSWORD=$(systemd-ask-password --timeout=0 --id=clix-home "Enter passphrase to unlock your data:")
+
+      if [ -z "$PASSWORD" ]; then
+        echo "ERROR: No password provided"
+        exit 1
       fi
 
-      mount "/dev/mapper/clix-home" "$MOUNT_POINT"
-      echo "Mounted encrypted /home"
-    else
-      echo "CLIX-HOME is not encrypted, mounting directly..."
-      mount "$HOME_PART" "$MOUNT_POINT"
-      echo "Mounted unencrypted /home"
+      # Try to open the LUKS container
+      if ! echo "$PASSWORD" | cryptsetup open "$HOME_DEV" "$MAPPER_NAME" -; then
+        echo "ERROR: Failed to unlock encrypted home"
+        echo "Wrong password or corrupted LUKS header"
+        exit 1
+      fi
+
+      # Clear password from memory
+      unset PASSWORD
     fi
 
-    # Ensure clix user home exists with correct permissions
-    if [ ! -d "$MOUNT_POINT/clix" ]; then
-      mkdir -p "$MOUNT_POINT/clix"
+    # Mount the decrypted filesystem
+    echo "CLIX: Mounting /home..."
+    mount "/dev/mapper/$MAPPER_NAME" "$MOUNT_POINT"
+
+    # Ensure user's home directory exists with correct permissions
+    if [ -f /etc/clix/user ]; then
+      USERNAME=$(cat /etc/clix/user)
+      if [ -n "$USERNAME" ] && [ ! -d "$MOUNT_POINT/$USERNAME" ]; then
+        mkdir -p "$MOUNT_POINT/$USERNAME"
+        chown 1000:100 "$MOUNT_POINT/$USERNAME"
+        chmod 700 "$MOUNT_POINT/$USERNAME"
+      fi
     fi
-    chown 1000:100 "$MOUNT_POINT/clix"
-    chmod 700 "$MOUNT_POINT/clix"
+
+    echo "CLIX: Encrypted home mounted successfully"
   '';
 
-  # Script to unmount /home cleanly
+  # Script to unmount /home cleanly (for shutdown)
   unmountHomeScript = pkgs.writeShellScript "clix-unmount-home" ''
     export PATH="${lib.makeBinPath (with pkgs; [ util-linux cryptsetup ])}:$PATH"
 
     MAPPER_NAME="clix-home"
     MOUNT_POINT="/home"
 
+    # Unmount if mounted
     if mountpoint -q "$MOUNT_POINT"; then
-      umount "$MOUNT_POINT"
+      echo "CLIX: Unmounting /home..."
+      umount "$MOUNT_POINT" || umount -l "$MOUNT_POINT"
     fi
 
+    # Close LUKS container if open
     if [ -b "/dev/mapper/$MAPPER_NAME" ]; then
+      echo "CLIX: Closing encrypted volume..."
       cryptsetup close "$MAPPER_NAME"
     fi
+
+    echo "CLIX: Encrypted home closed"
   '';
+
 in
 {
   # LUKS support in initrd for early boot
@@ -102,15 +126,19 @@ in
     cryptsetup
   ];
 
-  # Systemd service to mount /home (handles LUKS, plain ext4, or missing partition)
+  # Systemd service to unlock and mount encrypted /home
+  # Runs early in boot, before display manager
   systemd.services.clix-mount-home = {
-    description = "Mount CLIX-HOME partition";
+    description = "Unlock and mount CLIX encrypted home";
     wantedBy = [ "local-fs.target" ];
-    before = [ "local-fs.target" ];
-    after = [ "systemd-udev-settle.service" ];
+    before = [ "local-fs.target" "display-manager.service" "greetd.service" ];
+    after = [ "systemd-udev-settle.service" "systemd-ask-password-console.service" ];
+    wants = [ "systemd-ask-password-console.service" ];
 
     unitConfig = {
       DefaultDependencies = false;
+      # Only run if setup has been completed
+      ConditionPathExists = "/etc/clix/.setup-complete";
     };
 
     serviceConfig = {
@@ -118,16 +146,35 @@ in
       RemainAfterExit = true;
       ExecStart = "${mountHomeScript}";
       ExecStop = "${unmountHomeScript}";
+      # TTY access for password prompt
       StandardInput = "tty";
       StandardOutput = "tty";
       TTYPath = "/dev/console";
       TTYReset = true;
+      TTYVHangup = true;
     };
   };
 
-  # Ensure display manager waits for /home mount attempt
+  # Ensure display manager waits for /home to be mounted
   systemd.services.greetd = lib.mkIf config.services.greetd.enable {
     after = [ "clix-mount-home.service" ];
     wants = [ "clix-mount-home.service" ];
+  };
+
+  # Clean unmount on shutdown
+  systemd.services.clix-unmount-home-shutdown = {
+    description = "Close CLIX encrypted home on shutdown";
+    wantedBy = [ "shutdown.target" "reboot.target" ];
+    before = [ "shutdown.target" "reboot.target" ];
+    after = [ "final.target" ];
+
+    unitConfig = {
+      DefaultDependencies = false;
+    };
+
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${unmountHomeScript}";
+    };
   };
 }

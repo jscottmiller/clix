@@ -2,265 +2,370 @@
 
 # First-boot setup wizard for CLIX
 # On first boot (fresh install), this:
-# 1. Detects available free space on the USB drive
-# 2. Asks user how to partition (CLIX-DATA size, CLIX-HOME size)
-# 3. Creates and formats partitions
-# 4. Optionally encrypts CLIX-HOME with LUKS
-# 5. Mounts partitions and continues boot
+# 1. Collects username and password
+# 2. Asks how to allocate free space (root expansion vs encrypted home)
+# 3. Expands root partition
+# 4. Creates encrypted home partition
+# 5. Creates user account
+# 6. Reboots into normal operation
 
 let
+  # Dependencies for the wizard
+  wizardDeps = with pkgs; [
+    coreutils
+    util-linux
+    parted
+    cloud-utils  # for growpart
+    e2fsprogs
+    cryptsetup
+    zenity
+    gawk
+    shadow  # for useradd, passwd
+    gnused
+  ];
+
   # Main first-boot wizard script
+  # Runs from sway autostart via sudo, so display is already available
   firstBootWizard = pkgs.writeShellScript "clix-first-boot-wizard" ''
-    set -e
-    export PATH="${lib.makeBinPath (with pkgs; [
-      coreutils util-linux parted e2fsprogs dosfstools cryptsetup zenity gawk
-    ])}:$PATH"
+    set -euo pipefail
+    export PATH="${lib.makeBinPath wizardDeps}:$PATH"
 
-    # Find the boot device (the USB drive we're running from)
-    ROOT_DEV=$(findmnt -n -o SOURCE /)
-    if [[ "$ROOT_DEV" =~ ^/dev/nvme ]]; then
-      DISK=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
-    else
-      DISK=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
-    fi
+    exec > >(tee -a /tmp/clix-first-boot.log) 2>&1
+    echo "=== CLIX First Boot Wizard $(date) ==="
 
-    echo "CLIX First Boot Setup"
-    echo "Boot device: $DISK"
-
-    # Check if CLIX-DATA partition already exists
-    if blkid -L CLIX-DATA >/dev/null 2>&1; then
-      echo "CLIX-DATA partition exists, checking CLIX-HOME..."
-
-      # Check if CLIX-HOME exists
-      if blkid -L CLIX-HOME >/dev/null 2>&1 || blkid -L CLIX-HOME-FS >/dev/null 2>&1; then
-        echo "Partitions already configured, skipping first-boot setup."
-        exit 0
-      fi
-
-      # CLIX-DATA exists but CLIX-HOME doesn't - might be partial setup
-      # Continue to offer encryption setup
-    fi
-
-    # Check for marker file
-    if [ -f /etc/clix/.first-boot-complete ]; then
-      echo "First boot already completed."
+    # Check for marker file - don't run if setup already completed
+    if [ -f /etc/clix/.setup-complete ]; then
+      echo "Setup already completed."
       exit 0
     fi
 
-    # Get disk size and find free space
+    # Find the boot device (the USB drive we're running from)
+    ROOT_DEV=$(findmnt -n -o SOURCE /)
+    if [ -z "$ROOT_DEV" ]; then
+      zenity --error --title="Error" --text="Could not determine root device." --width=300
+      exit 1
+    fi
+
+    # Determine disk device from partition
+    if [[ "$ROOT_DEV" =~ ^/dev/nvme ]]; then
+      DISK=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
+      ROOT_PART_NUM=$(echo "$ROOT_DEV" | sed 's/.*p//')
+    else
+      DISK=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
+      ROOT_PART_NUM=$(echo "$ROOT_DEV" | sed 's/[^0-9]*//g')
+    fi
+
+    echo "Boot device: $DISK, root partition: $ROOT_PART_NUM"
+
+    # Fix GPT to use full disk (important when image is written to larger drive)
+    echo "Checking GPT..."
+    echo "Fix" | parted ---pretend-input-tty "$DISK" print 2>/dev/null || true
+    partprobe "$DISK" 2>/dev/null || true
+    sleep 1
+
+    # Get disk size and calculate free space
     DISK_SIZE_BYTES=$(blockdev --getsize64 "$DISK")
     DISK_SIZE_GB=$((DISK_SIZE_BYTES / 1024 / 1024 / 1024))
 
-    # Get end of last partition (in sectors)
+    # Get end of root partition
     SECTOR_SIZE=$(blockdev --getss "$DISK")
-    LAST_PART_END=$(parted -s "$DISK" unit s print | grep "^ [0-9]" | tail -1 | awk '{print $3}' | tr -d 's')
+    ROOT_END_SECTOR=$(parted -s "$DISK" unit s print | grep "^ *$ROOT_PART_NUM " | awk '{print $3}' | tr -d 's')
 
-    # Calculate free space (leave 1MB at end for GPT backup)
-    FREE_START_SECTOR=$((LAST_PART_END + 1))
-    FREE_END_SECTOR=$((DISK_SIZE_BYTES / SECTOR_SIZE - 2048))
-    FREE_SECTORS=$((FREE_END_SECTOR - FREE_START_SECTOR))
+    # Calculate free space
+    TOTAL_SECTORS=$((DISK_SIZE_BYTES / SECTOR_SIZE))
+    FREE_SECTORS=$((TOTAL_SECTORS - ROOT_END_SECTOR - 2048))  # Leave space for GPT backup
     FREE_GB=$((FREE_SECTORS * SECTOR_SIZE / 1024 / 1024 / 1024))
+
+    echo "Disk: ''${DISK_SIZE_GB}GB total, ''${FREE_GB}GB free after current partitions"
 
     if [ "$FREE_GB" -lt 1 ]; then
       zenity --error \
         --title="Insufficient Space" \
-        --text="Not enough free space on the USB drive.\n\nFree space: ''${FREE_GB}GB\nRequired: at least 1GB\n\nThe drive may need to be re-imaged with a larger device." \
-        --width=400 2>/dev/null
+        --text="Not enough free space on the drive.\n\nFree space: ''${FREE_GB}GB\nRequired: at least 1GB\n\nPlease use a larger USB drive." \
+        --width=400
       exit 1
     fi
 
-    echo "Disk: $DISK (''${DISK_SIZE_GB}GB total, ''${FREE_GB}GB free)"
-
-    # Welcome dialog
-    SETUP_CHOICE=$(zenity --list \
+    # ===== WELCOME SCREEN =====
+    zenity --info \
       --title="Welcome to CLIX" \
-      --text="Welcome to CLIX!\n\nYour USB drive has ''${FREE_GB}GB of free space available.\nThis wizard will set up your data and home partitions.\n\nChoose setup type:" \
-      --radiolist \
-      --column="Select" --column="Option" --column="Description" \
-      TRUE "recommended" "Recommended: 4GB data, rest for home (encrypted)" \
-      FALSE "custom" "Custom: Choose sizes and encryption" \
-      FALSE "skip" "Skip setup (not recommended)" \
-      --width=500 --height=300 2>/dev/null) || exit 1
+      --text="Welcome to CLIX!\n\nThis wizard will set up your system:\n\n• Create your user account\n• Set up encrypted storage for your data\n• Configure the system for your use\n\nYour USB drive has ''${FREE_GB}GB of free space available." \
+      --width=450
 
-    if [ "$SETUP_CHOICE" = "skip" ]; then
-      mkdir -p /etc/clix
-      touch /etc/clix/.first-boot-complete
-      zenity --info --text="Setup skipped. You can run 'sudo clix-setup' later." --width=300 2>/dev/null
-      exit 0
-    fi
+    # ===== USERNAME INPUT =====
+    while true; do
+      USERNAME=$(zenity --entry \
+        --title="Create User Account" \
+        --text="Choose a username:\n\n(lowercase letters, numbers, and underscores only)" \
+        --entry-text="" \
+        --width=400) || exit 1
 
-    # Determine partition sizes
-    if [ "$SETUP_CHOICE" = "recommended" ]; then
-      DATA_SIZE_GB=4
-      HOME_SIZE_GB=$((FREE_GB - DATA_SIZE_GB))
-      ENCRYPT_HOME="yes"
-    else
-      # Custom setup - ask for sizes
-      DATA_SIZE_GB=$(zenity --scale \
-        --title="CLIX-DATA Size" \
-        --text="How much space for CLIX-DATA? (FAT32, Windows-visible)\n\nUse this for WiFi configs, Claude credentials staging." \
-        --min-value=1 --max-value=$((FREE_GB - 1)) --value=4 \
-        --width=400 2>/dev/null) || exit 1
-
-      REMAINING=$((FREE_GB - DATA_SIZE_GB))
-      HOME_SIZE_GB=$(zenity --scale \
-        --title="CLIX-HOME Size" \
-        --text="How much space for CLIX-HOME? (Your private data)\n\nRemaining space: ''${REMAINING}GB" \
-        --min-value=1 --max-value=$REMAINING --value=$REMAINING \
-        --width=400 2>/dev/null) || exit 1
-
-      # Ask about encryption
-      if zenity --question \
-        --title="Encrypt Home?" \
-        --text="Do you want to encrypt CLIX-HOME?\n\nEncryption protects your data if the USB is lost.\nYou'll need to enter a password on each boot." \
-        --ok-label="Yes, Encrypt" \
-        --cancel-label="No Encryption" \
-        --width=400 2>/dev/null; then
-        ENCRYPT_HOME="yes"
-      else
-        ENCRYPT_HOME="no"
+      # Validate username
+      if [ -z "$USERNAME" ]; then
+        zenity --error --text="Username cannot be empty." --width=250
+        continue
       fi
-    fi
 
-    # Get encryption password if needed
-    if [ "$ENCRYPT_HOME" = "yes" ]; then
-      while true; do
-        PASS1=$(zenity --password \
-          --title="Set Encryption Password" \
-          --text="Enter a strong password for CLIX-HOME encryption:" \
-          2>/dev/null) || exit 1
+      if ! echo "$USERNAME" | grep -qE '^[a-z_][a-z0-9_-]*$'; then
+        zenity --error --text="Invalid username.\n\nMust start with a letter or underscore,\nand contain only lowercase letters, numbers,\nunderscores, and hyphens." --width=350
+        continue
+      fi
 
-        if [ -z "$PASS1" ]; then
-          zenity --error --text="Password cannot be empty." --width=250 2>/dev/null
-          continue
-        fi
+      if [ ''${#USERNAME} -gt 32 ]; then
+        zenity --error --text="Username too long (max 32 characters)." --width=250
+        continue
+      fi
 
-        if [ ''${#PASS1} -lt 8 ]; then
-          zenity --error --text="Password must be at least 8 characters." --width=250 2>/dev/null
-          continue
-        fi
+      # Check if user already exists
+      if getent passwd "$USERNAME" >/dev/null 2>&1; then
+        zenity --error --text="Username '$USERNAME' already exists." --width=250
+        continue
+      fi
 
-        PASS2=$(zenity --password \
-          --title="Confirm Password" \
-          --text="Confirm your encryption password:" \
-          2>/dev/null) || exit 1
+      break
+    done
 
-        if [ "$PASS1" != "$PASS2" ]; then
-          zenity --error --text="Passwords do not match. Try again." --width=250 2>/dev/null
-          continue
-        fi
+    echo "Username: $USERNAME"
 
-        break
-      done
-    fi
+    # ===== PASSWORD INPUT =====
+    while true; do
+      PASSWORD=$(zenity --password \
+        --title="Set Password" \
+        --text="Enter a password for $USERNAME:\n\n(This will also be used to encrypt your data)" \
+        --width=400) || exit 1
 
-    # Confirm before proceeding
-    ENCRYPT_MSG="No"
-    [ "$ENCRYPT_HOME" = "yes" ] && ENCRYPT_MSG="Yes"
+      if [ -z "$PASSWORD" ]; then
+        zenity --error --text="Password cannot be empty." --width=250
+        continue
+      fi
 
+      if [ ''${#PASSWORD} -lt 8 ]; then
+        zenity --error --text="Password must be at least 8 characters." --width=250
+        continue
+      fi
+
+      PASSWORD2=$(zenity --password \
+        --title="Confirm Password" \
+        --text="Confirm your password:" \
+        --width=400) || exit 1
+
+      if [ "$PASSWORD" != "$PASSWORD2" ]; then
+        zenity --error --text="Passwords do not match. Try again." --width=250
+        continue
+      fi
+
+      break
+    done
+
+    # ===== STORAGE ALLOCATION =====
+    # Leave at least 10GB for encrypted home
+    MAX_ROOT_EXPAND=$((FREE_GB - 10))
+    [ "$MAX_ROOT_EXPAND" -lt 0 ] && MAX_ROOT_EXPAND=0
+
+    # Default: 16GB for root expansion, rest for home
+    DEFAULT_ROOT_EXPAND=16
+    [ "$DEFAULT_ROOT_EXPAND" -gt "$MAX_ROOT_EXPAND" ] && DEFAULT_ROOT_EXPAND=$MAX_ROOT_EXPAND
+
+    ROOT_EXPAND_GB=$(zenity --scale \
+      --title="Storage Allocation" \
+      --text="Add space to system partition (for packages):\n\nCurrent: 8GB, Max addition: ''${MAX_ROOT_EXPAND}GB\nRemaining space goes to encrypted home." \
+      --min-value=0 \
+      --max-value=$MAX_ROOT_EXPAND \
+      --value=$DEFAULT_ROOT_EXPAND \
+      --width=450) || exit 1
+
+    HOME_SIZE_GB=$((FREE_GB - ROOT_EXPAND_GB))
+
+    echo "Root expansion: +''${ROOT_EXPAND_GB}GB (total: $((8 + ROOT_EXPAND_GB))GB), Home size: ''${HOME_SIZE_GB}GB"
+
+    # ===== CONFIRMATION =====
     if ! zenity --question \
       --title="Confirm Setup" \
-      --text="Ready to create partitions:\n\n• CLIX-DATA: ''${DATA_SIZE_GB}GB (FAT32)\n• CLIX-HOME: ''${HOME_SIZE_GB}GB (ext4)\n• Encryption: $ENCRYPT_MSG\n\nThis will use the free space on your USB drive.\nExisting partitions will NOT be modified.\n\nProceed?" \
-      --ok-label="Create Partitions" \
+      --text="Ready to set up your system:\n\n• Username: $USERNAME\n• System partition: $((8 + ROOT_EXPAND_GB))GB (+''${ROOT_EXPAND_GB}GB)\n• Encrypted home: ''${HOME_SIZE_GB}GB\n\nThis will modify your USB drive.\nExisting system data will be preserved.\n\nProceed?" \
+      --ok-label="Set Up System" \
       --cancel-label="Cancel" \
-      --width=400 2>/dev/null; then
+      --width=400; then
       exit 1
     fi
 
-    # Calculate partition boundaries (in sectors)
-    DATA_SECTORS=$((DATA_SIZE_GB * 1024 * 1024 * 1024 / SECTOR_SIZE))
-    HOME_SECTORS=$((HOME_SIZE_GB * 1024 * 1024 * 1024 / SECTOR_SIZE))
-
-    # Align to 2048 sector boundaries
-    DATA_START=$(( ((FREE_START_SECTOR + 2047) / 2048) * 2048 ))
-    DATA_END=$((DATA_START + DATA_SECTORS - 1))
-    HOME_START=$(( ((DATA_END + 1 + 2047) / 2048) * 2048 ))
-    HOME_END=$((HOME_START + HOME_SECTORS - 1))
-
-    # Create partitions with progress
+    # ===== EXECUTE SETUP =====
     (
+      echo "5"
+      echo "# Preparing..."
+      mkdir -p /etc/clix
+
       echo "10"
-      echo "# Creating CLIX-DATA partition..."
+      echo "# Expanding root partition..."
+
+      if [ "$ROOT_EXPAND_GB" -gt 0 ]; then
+        # Calculate target size for root partition in sectors
+        EXPAND_SECTORS=$((ROOT_EXPAND_GB * 1024 * 1024 * 1024 / SECTOR_SIZE))
+        NEW_ROOT_END=$((ROOT_END_SECTOR + EXPAND_SECTORS))
+
+        echo "Expanding root from sector $ROOT_END_SECTOR to $NEW_ROOT_END"
+
+        # Use parted to resize partition (growpart has issues)
+        parted -s ---pretend-input-tty "$DISK" resizepart "$ROOT_PART_NUM" "''${NEW_ROOT_END}s" <<< "Yes" || {
+          echo "Warning: Could not expand root partition, continuing..."
+        }
+
+        # Update ROOT_END_SECTOR for home partition calculation
+        ROOT_END_SECTOR=$NEW_ROOT_END
+
+        # Refresh kernel partition table
+        partprobe "$DISK"
+        sleep 2
+
+        # Resize filesystem to fill partition
+        echo "15"
+        echo "# Resizing filesystem..."
+        resize2fs "$ROOT_DEV" || echo "Warning: resize2fs had issues, continuing..."
+      fi
+
+      echo "20"
+      echo "# Creating home partition..."
+
+      # Home partition starts right after root, aligned to 1MB
+      HOME_START_SECTOR=$(( ((ROOT_END_SECTOR + 2048) / 2048) * 2048 ))
+      HOME_END_SECTOR=$((TOTAL_SECTORS - 2048))  # Leave space for GPT backup
+
+      echo "Creating home partition from sector $HOME_START_SECTOR to $HOME_END_SECTOR"
 
       # Get next partition number
       LAST_PART_NUM=$(parted -s "$DISK" print | grep "^ [0-9]" | tail -1 | awk '{print $1}')
-      DATA_PART_NUM=$((LAST_PART_NUM + 1))
-      HOME_PART_NUM=$((DATA_PART_NUM + 1))
+      HOME_PART_NUM=$((LAST_PART_NUM + 1))
 
-      parted -s "$DISK" mkpart CLIX-DATA fat32 ''${DATA_START}s ''${DATA_END}s
+      parted -s "$DISK" mkpart CLIX-HOME ext4 "''${HOME_START_SECTOR}s" "''${HOME_END_SECTOR}s"
 
-      echo "30"
-      echo "# Creating CLIX-HOME partition..."
-      parted -s "$DISK" mkpart CLIX-HOME ext4 ''${HOME_START}s ''${HOME_END}s
-
-      # Wait for partition devices to appear
+      # Wait for partition device
       sleep 2
       partprobe "$DISK"
       sleep 2
 
-      # Determine partition device names
+      # Determine home partition device name
       if [[ "$DISK" =~ nvme ]]; then
-        DATA_DEV="''${DISK}p''${DATA_PART_NUM}"
         HOME_DEV="''${DISK}p''${HOME_PART_NUM}"
       else
-        DATA_DEV="''${DISK}''${DATA_PART_NUM}"
         HOME_DEV="''${DISK}''${HOME_PART_NUM}"
       fi
 
+      echo "Home device: $HOME_DEV"
+
+      # Wait for device to appear
+      for i in 1 2 3 4 5; do
+        [ -b "$HOME_DEV" ] && break
+        echo "Waiting for $HOME_DEV..."
+        sleep 2
+        partprobe "$DISK"
+      done
+
+      if [ ! -b "$HOME_DEV" ]; then
+        echo "ERROR: $HOME_DEV does not exist!"
+        exit 1
+      fi
+
+      echo "40"
+      echo "# Setting up encryption..."
+
+      # Format as LUKS (use printf to avoid echo issues with special chars)
+      # Write password to temp file to avoid pipe issues
+      PASS_FILE=$(mktemp)
+      printf '%s' "$PASSWORD" > "$PASS_FILE"
+
+      echo "Running cryptsetup luksFormat..."
+      if ! cryptsetup luksFormat --type luks2 --pbkdf argon2id --key-file="$PASS_FILE" "$HOME_DEV" --batch-mode; then
+        echo "ERROR: cryptsetup luksFormat failed!"
+        rm -f "$PASS_FILE"
+        exit 1
+      fi
+
       echo "50"
-      echo "# Formatting CLIX-DATA (FAT32)..."
-      mkfs.vfat -n CLIX-DATA "$DATA_DEV"
+      echo "# Opening encrypted volume..."
+      if ! cryptsetup open --key-file="$PASS_FILE" "$HOME_DEV" clix-home; then
+        echo "ERROR: cryptsetup open failed!"
+        rm -f "$PASS_FILE"
+        exit 1
+      fi
 
-      # Create directory structure on CLIX-DATA
-      TEMP_MOUNT=$(mktemp -d)
-      mount "$DATA_DEV" "$TEMP_MOUNT"
-      mkdir -p "$TEMP_MOUNT/claude" "$TEMP_MOUNT/network"
-      cat > "$TEMP_MOUNT/README.txt" << 'DATAEOF'
-CLIX Data Partition
-====================
+      rm -f "$PASS_FILE"
 
-This partition is read on boot to configure your CLIX system.
-
-WiFi Configuration
-------------------
-Create: network/wifi.nmconnection
-Create: network/regdomain (2-letter country code, e.g., US)
-
-Claude Credentials
-------------------
-Copy your ~/.claude directory contents to: claude/
-DATAEOF
-      umount "$TEMP_MOUNT"
-      rmdir "$TEMP_MOUNT"
+      echo "60"
+      echo "# Formatting home filesystem..."
+      if ! mkfs.ext4 -L CLIX-HOME /dev/mapper/clix-home; then
+        echo "ERROR: mkfs.ext4 failed!"
+        exit 1
+      fi
 
       echo "70"
-      if [ "$ENCRYPT_HOME" = "yes" ]; then
-        echo "# Encrypting CLIX-HOME partition..."
-        echo "$PASS1" | cryptsetup luksFormat --type luks2 --pbkdf argon2id "$HOME_DEV" -
-        echo "$PASS1" | cryptsetup open "$HOME_DEV" clix-home -
+      echo "# Mounting home..."
+      if ! mount /dev/mapper/clix-home /home; then
+        echo "ERROR: mount failed!"
+        exit 1
+      fi
 
-        echo "85"
-        echo "# Formatting encrypted CLIX-HOME (ext4)..."
-        mkfs.ext4 -L CLIX-HOME-FS /dev/mapper/clix-home
+      echo "75"
+      echo "# Creating user account..."
 
-        # Mount and set up
-        mount /dev/mapper/clix-home /home
-      else
-        echo "# Formatting CLIX-HOME (ext4)..."
-        mkfs.ext4 -L CLIX-HOME "$HOME_DEV"
-        mount "$HOME_DEV" /home
+      # Create the user with appropriate groups
+      # Don't specify UID (setup user has 1000), use proper NixOS shell path
+      useradd -m -G wheel,networkmanager,video,audio -s ${pkgs.bash}/bin/bash "$USERNAME"
+
+      # Set password
+      echo "$USERNAME:$PASSWORD" | chpasswd
+
+      # Set up home directory permissions
+      chmod 700 "/home/$USERNAME"
+
+      echo "85"
+      echo "# Configuring system..."
+
+      # Save username for greetd and other services
+      echo "$USERNAME" > /etc/clix/user
+
+      # Mark setup as complete
+      touch /etc/clix/.setup-complete
+      touch /etc/clix/.home-encrypted
+
+      # Store the home partition device for boot scripts
+      echo "$HOME_DEV" > /etc/clix/home-device
+
+      echo "90"
+      echo "# Setting up user environment..."
+
+      # Create user config directories
+      mkdir -p "/home/$USERNAME/.config/sway"
+      mkdir -p "/home/$USERNAME/.config/waybar"
+      mkdir -p "/home/$USERNAME/.claude"
+
+      # Link system configs
+      ln -sf /etc/sway/config "/home/$USERNAME/.config/sway/config"
+      ln -sf /etc/xdg/waybar/config "/home/$USERNAME/.config/waybar/config"
+      ln -sf /etc/xdg/waybar/style.css "/home/$USERNAME/.config/waybar/style.css"
+
+      chown -R "$USERNAME:users" "/home/$USERNAME"
+
+      # Import any staged Claude credentials from CLIX-DATA
+      if blkid -L CLIX-DATA >/dev/null 2>&1; then
+        DATA_DEV=$(blkid -L CLIX-DATA)
+        TEMP_MOUNT=$(mktemp -d)
+        mount -o ro "$DATA_DEV" "$TEMP_MOUNT" || true
+
+        if [ -d "$TEMP_MOUNT/claude" ] && [ -n "$(ls -A "$TEMP_MOUNT/claude" 2>/dev/null)" ]; then
+          cp -rT "$TEMP_MOUNT/claude" "/home/$USERNAME/.claude/"
+          chown -R "$USERNAME:users" "/home/$USERNAME/.claude"
+          chmod 700 "/home/$USERNAME/.claude"
+        fi
+
+        umount "$TEMP_MOUNT" || true
+        rmdir "$TEMP_MOUNT" || true
       fi
 
       echo "95"
-      echo "# Setting up home directory..."
-      mkdir -p /home/clix
-      chown 1000:100 /home/clix
-      chmod 700 /home/clix
+      echo "# Finalizing..."
 
-      # Create marker file
-      mkdir -p /etc/clix
-      touch /etc/clix/.first-boot-complete
-      [ "$ENCRYPT_HOME" = "yes" ] && touch /etc/clix/.home-encrypted
+      # Note: We don't lock the setup user here.
+      # After reboot, greetd will automatically use the new user
+      # based on /etc/clix/user
 
       echo "100"
     ) | zenity --progress \
@@ -269,125 +374,130 @@ DATAEOF
         --percentage=0 \
         --auto-close \
         --no-cancel \
-        --width=400 2>/dev/null
+        --width=400
 
     # Clear password from memory
-    unset PASS1 PASS2
+    unset PASSWORD PASSWORD2
 
     # Success message
     zenity --info \
-      --title="Setup Complete" \
-      --text="CLIX setup complete!\n\nPartitions created:\n• CLIX-DATA: ''${DATA_SIZE_GB}GB\n• CLIX-HOME: ''${HOME_SIZE_GB}GB $([ "$ENCRYPT_HOME" = "yes" ] && echo "(encrypted)")\n\nYou can now use your CLIX system.\nOn future boots$([ "$ENCRYPT_HOME" = "yes" ] && echo ", enter your password when prompted")." \
-      --width=400 2>/dev/null
+      --title="Setup Complete!" \
+      --text="Your CLIX system is ready!\n\n• Username: $USERNAME\n• Encrypted home: ''${HOME_SIZE_GB}GB\n\nThe system will now reboot.\n\nOn each boot, you'll enter your password\nto unlock your encrypted data." \
+      --width=400
+
+    # Reboot
+    systemctl reboot
   '';
 
   # CLI version for manual setup
   manualSetupScript = pkgs.writeShellScriptBin "clix-setup" ''
+    if [ "$EUID" -ne 0 ]; then
+      echo "This script must be run as root (use sudo)."
+      exit 1
+    fi
     exec ${firstBootWizard}
   '';
 
-  # Manual encryption script (for encrypting existing unencrypted home)
-  manualEncryptScript = pkgs.writeShellScriptBin "clix-encrypt-home" ''
+  # Factory reset script - wipe user and return to setup mode
+  factoryResetScript = pkgs.writeShellScriptBin "clix-factory-reset" ''
     set -e
-    export PATH="${lib.makeBinPath (with pkgs; [
-      coreutils util-linux cryptsetup
-    ])}:$PATH"
-
-    HOME_PART=$(blkid -L CLIX-HOME 2>/dev/null || true)
-
-    if [ -z "$HOME_PART" ]; then
-      echo "CLIX-HOME partition not found."
-      echo "Run 'sudo clix-setup' first to create partitions."
-      exit 1
-    fi
-
-    if cryptsetup isLuks "$HOME_PART" 2>/dev/null; then
-      echo "CLIX-HOME is already encrypted."
-      exit 0
-    fi
+    export PATH="${lib.makeBinPath (with pkgs; [ coreutils util-linux cryptsetup ])}:$PATH"
 
     if [ "$EUID" -ne 0 ]; then
       echo "This script must be run as root (use sudo)."
       exit 1
     fi
 
-    echo "=== CLIX Home Encryption ==="
+    echo "=== CLIX Factory Reset ==="
     echo ""
-    echo "This will encrypt your /home partition."
-    echo "WARNING: This will ERASE all data on /home!"
+    echo "WARNING: This will:"
+    echo "  - Delete your user account"
+    echo "  - Wipe your encrypted home partition"
+    echo "  - Return the system to first-boot state"
     echo ""
-    read -p "Type 'yes' to continue: " CONFIRM
-    [ "$CONFIRM" != "yes" ] && exit 1
+    echo "All your data will be PERMANENTLY LOST!"
+    echo ""
+    read -p "Type 'RESET' to confirm: " CONFIRM
 
-    # Get password
-    while true; do
-      read -s -p "Enter encryption password: " PASS1
-      echo ""
-      [ -z "$PASS1" ] && echo "Password cannot be empty." && continue
-      [ ''${#PASS1} -lt 8 ] && echo "Password must be at least 8 characters." && continue
-      read -s -p "Confirm password: " PASS2
-      echo ""
-      [ "$PASS1" != "$PASS2" ] && echo "Passwords do not match." && continue
-      break
-    done
-
-    echo "Unmounting /home..."
-    umount /home 2>/dev/null || true
-
-    echo "Encrypting partition..."
-    echo "$PASS1" | cryptsetup luksFormat --type luks2 --pbkdf argon2id "$HOME_PART" -
-
-    echo "Opening encrypted partition..."
-    echo "$PASS1" | cryptsetup open "$HOME_PART" clix-home -
-
-    echo "Formatting..."
-    mkfs.ext4 -L CLIX-HOME-FS /dev/mapper/clix-home
-
-    echo "Mounting..."
-    mount /dev/mapper/clix-home /home
-    mkdir -p /home/clix
-    chown 1000:100 /home/clix
-    chmod 700 /home/clix
-
-    mkdir -p /etc/clix
-    touch /etc/clix/.home-encrypted
-
-    unset PASS1 PASS2
+    if [ "$CONFIRM" != "RESET" ]; then
+      echo "Aborted."
+      exit 1
+    fi
 
     echo ""
-    echo "Encryption complete!"
-    echo "On next boot, you'll be prompted for your password."
+    echo "Resetting system..."
+
+    # Get current user
+    if [ -f /etc/clix/user ]; then
+      CURRENT_USER=$(cat /etc/clix/user)
+
+      # Kill user processes
+      pkill -u "$CURRENT_USER" 2>/dev/null || true
+      sleep 2
+
+      # Delete user
+      userdel -r "$CURRENT_USER" 2>/dev/null || true
+    fi
+
+    # Close and wipe encrypted home
+    if [ -b /dev/mapper/clix-home ]; then
+      umount /home 2>/dev/null || true
+      cryptsetup close clix-home
+    fi
+
+    # Wipe home partition header
+    if [ -f /etc/clix/home-device ]; then
+      HOME_DEV=$(cat /etc/clix/home-device)
+      dd if=/dev/zero of="$HOME_DEV" bs=1M count=10 2>/dev/null || true
+    fi
+
+    # Remove setup markers
+    rm -f /etc/clix/.setup-complete
+    rm -f /etc/clix/.home-encrypted
+    rm -f /etc/clix/user
+    rm -f /etc/clix/home-device
+
+    # Re-enable setup user
+    usermod -U setup 2>/dev/null || true
+    usermod -e "" setup 2>/dev/null || true
+
+    echo ""
+    echo "Factory reset complete."
+    echo "The system will now reboot to the setup wizard."
+    echo ""
+    read -p "Press Enter to reboot..."
+
+    systemctl reboot
   '';
+
+  # Autostart script - runs from sway config
+  # Checks if setup is complete, runs wizard if not, otherwise starts Claude terminal
+  autostartScript = pkgs.writeShellScript "clix-autostart" ''
+    #!/usr/bin/env bash
+
+    if [ ! -f /etc/clix/.setup-complete ]; then
+      # First boot - run setup wizard with sudo
+      # Use -E to preserve WAYLAND_DISPLAY and other env vars for zenity
+      sudo -E ${firstBootWizard}
+    else
+      # Setup complete - start Claude terminal
+      exec foot --app-id=claude-terminal -e /etc/clix-welcome.sh
+    fi
+  '';
+
 in
 {
   environment.systemPackages = [
     manualSetupScript
-    manualEncryptScript
+    factoryResetScript
     pkgs.zenity
     pkgs.parted
+    pkgs.cloud-utils  # for growpart
   ];
 
-  # Run first-boot wizard after graphical session starts
-  systemd.services.clix-first-boot = {
-    description = "CLIX First Boot Setup Wizard";
-    wantedBy = [ "graphical.target" ];
-    after = [ "graphical.target" ];
-
-    unitConfig = {
-      # Don't run if setup already completed
-      ConditionPathExists = "!/etc/clix/.first-boot-complete";
-    };
-
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${firstBootWizard}";
-      Environment = [
-        "DISPLAY=:0"
-        "WAYLAND_DISPLAY=wayland-1"
-        "XDG_RUNTIME_DIR=/run/user/1000"
-      ];
-      # Give time for desktop to start
-      ExecStartPre = "${pkgs.coreutils}/bin/sleep 5";
-    };
+  # Deploy autostart script
+  environment.etc."clix-autostart.sh" = {
+    source = autostartScript;
+    mode = "0755";
   };
 }

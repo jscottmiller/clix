@@ -138,14 +138,37 @@ in
     kernelParams = [
       "console=ttyS0,115200"  # Serial console for VM debugging
       "console=tty0"
+      "rootwait"              # Wait indefinitely for root device (USB can be slow)
     ];
 
-    # Initrd settings for LUKS support (encrypted /home)
-    # Note: LUKS modules are added in encrypted-home.nix
+    # Initrd settings
     initrd = {
       # Use systemd in initrd for better LUKS password prompts
       systemd.enable = true;
+
+      # USB storage modules - essential for booting from USB
+      availableKernelModules = [
+        "usb_storage"
+        "uas"           # USB Attached SCSI
+        "sd_mod"        # SCSI disk
+        "ehci_pci"      # USB 2.0
+        "xhci_pci"      # USB 3.0
+        "ahci"          # SATA (for some USB-SATA bridges)
+        "usbhid"        # USB HID (keyboards)
+      ];
     };
+  };
+
+  # Filesystem configuration for live USB
+  fileSystems."/" = {
+    device = "/dev/disk/by-label/CLIX-ROOT";
+    fsType = "ext4";
+    options = [ "x-systemd.device-timeout=0" ];  # Wait indefinitely for USB
+  };
+
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-label/ESP";
+    fsType = "vfat";
   };
 
   # Enable memory compression for better performance
