@@ -8,8 +8,8 @@
   # Enable networking
   networking.networkmanager.enable = true;
 
-  # wpa_supplicant service needed by NetworkManager for WiFi
-  networking.wireless.enable = lib.mkDefault true;
+  # Don't enable standalone wpa_supplicant - NetworkManager handles WiFi internally
+  networking.wireless.enable = lib.mkForce false;
 
   # Essential packages - minimal set, user prompts for the rest
   environment.systemPackages = with pkgs; [

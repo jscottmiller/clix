@@ -48,6 +48,7 @@ let
     # Import NetworkManager connections
     if [ -d "$DATA_MOUNT/network" ]; then
       echo "CLIX: Checking for network configurations..."
+      mkdir -p /etc/NetworkManager/system-connections
       for conn in "$DATA_MOUNT/network"/*.nmconnection; do
         if [ -f "$conn" ]; then
           name=$(basename "$conn")
@@ -87,10 +88,8 @@ in
   systemd.services.clix-import-data = {
     description = "Import CLIX data from data partition";
     wantedBy = [ "multi-user.target" ];
-    before = [ "network-online.target" "display-manager.service" ];
-    # Wait for /home mount if setup is complete
-    after = [ "local-fs.target" "clix-mount-home.service" ];
-    wants = [ "clix-mount-home.service" ];
+    before = [ "network-online.target" "display-manager.service" "NetworkManager.service" ];
+    after = [ "local-fs.target" ];
 
     serviceConfig = {
       Type = "oneshot";

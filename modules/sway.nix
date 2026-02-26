@@ -98,47 +98,44 @@ in
     '';
   };
 
-  # Greetd - provide default config, overwritten by clix-greetd-config service
-  services.greetd = {
-    enable = true;
-    settings = {
-      default_session = {
-        command = "${swayStartScript}";
-        user = "setup";
-      };
-    };
-  };
+  # Greetd - we manage the config dynamically
+  services.greetd.enable = true;
 
-  # Generate greetd config at boot based on setup state
-  systemd.services.clix-greetd-config = {
-    description = "Configure greetd user";
-    wantedBy = [ "greetd.service" ];
-    before = [ "greetd.service" ];
-    # No 'after' dependency - this needs to run on first boot too
+  # Override greetd service entirely to use our dynamic config
+  systemd.services.greetd = {
     serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    path = [ pkgs.coreutils ];
-    script = ''
-      if [ -f /etc/clix/user ]; then
-        LOGIN_USER=$(cat /etc/clix/user)
-      else
-        LOGIN_USER="setup"
-      fi
+      ExecStartPre = let
+        configScript = pkgs.writeShellScript "clix-greetd-setup" ''
+          mkdir -p /run/clix
+          if [ -f /etc/clix/.setup-complete ]; then
+            # After setup: require login
+            cat > /run/clix/greetd.toml << EOF
+[terminal]
+vt = 1
 
-      mkdir -p /etc/greetd
-      cat > /etc/greetd/config.toml << EOF
+[default_session]
+command = "${pkgs.greetd.greetd}/bin/agreety --cmd ${swayStartScript}"
+user = "root"
+EOF
+            echo "Greetd: configured with login prompt"
+          else
+            # First boot: auto-login as setup
+            cat > /run/clix/greetd.toml << EOF
 [terminal]
 vt = 1
 
 [default_session]
 command = "${swayStartScript}"
-user = "$LOGIN_USER"
+user = "setup"
 EOF
-      echo "Configured greetd for user: $LOGIN_USER"
-    '';
+            echo "Greetd: configured for first boot (setup user)"
+          fi
+        '';
+      in "${configScript}";
+      ExecStart = lib.mkForce "${pkgs.greetd.greetd}/bin/greetd --config /run/clix/greetd.toml";
+    };
   };
+
 
   # Enable Sway
   programs.sway = {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CLIX Image Builder (no root required)
+# CLIX Image Builder (uses sudo only for cleanup of nix store files)
 # Creates a bootable USB image with:
 #   - ESP (512MB, FAT32) - EFI boot
 #   - CLIX-DATA (512MB, FAT32) - Windows/Mac readable staging area
@@ -271,7 +271,7 @@ assemble_image() {
 cleanup() {
     if [[ -d "$WORK_DIR" ]]; then
         log "Cleaning up work directory..."
-        rm -rf "$WORK_DIR"
+        sudo rm -rf "$WORK_DIR"
     fi
 }
 
@@ -281,11 +281,11 @@ main() {
     log "=================="
 
     # Clean up any stale work directory from failed previous builds
+    # nix copy creates root-owned files, so we need sudo to clean up
     if [[ -d "$WORK_DIR" ]]; then
-        log "Cleaning stale work directory..."
-        rm -rf "$WORK_DIR" 2>/dev/null || {
-            log "Cannot clean work dir (permission issues), using nix-shell with root..."
-            nix-shell -p coreutils --run "rm -rf '$WORK_DIR'" 2>/dev/null || true
+        log "Cleaning stale work directory (requires sudo)..."
+        sudo rm -rf "$WORK_DIR" || {
+            error "Cannot clean work directory. Please run: sudo rm -rf $WORK_DIR"
         }
     fi
 
