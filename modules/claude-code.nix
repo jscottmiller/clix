@@ -87,19 +87,20 @@ let
     ```
 
     ### Python Environment
-    Python 3 is available. Use nix-shell to get additional packages:
+    Python 3 is available with common packages pre-installed:
+    - **matplotlib** - plotting and visualization
+    - **numpy** - numerical computing
+    - **pandas** - data manipulation
+    - **pillow** - image processing
+    - **requests** - HTTP client
+    - **tkinter** - GUI applications
+    - **pyyaml** - YAML parsing
+    - **rich** - pretty terminal output
 
+    For additional packages, use nix-shell:
     ```bash
-    # Temporary shell with packages
-    nix-shell -p python3Packages.matplotlib python3Packages.numpy python3Packages.pandas
-
-    # Then run your script
-    python my_script.py
+    nix-shell -p python3Packages.scipy python3Packages.scikit-learn
     ```
-
-    Common Python packages: `python3Packages.matplotlib`, `python3Packages.numpy`,
-    `python3Packages.pandas`, `python3Packages.pillow`, `python3Packages.requests`,
-    `python3Packages.pyyaml`, `python3Packages.rich`
 
     Use `imv` to view generated images: `imv /tmp/plot.png`
 
