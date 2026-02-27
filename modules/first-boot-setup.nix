@@ -346,6 +346,11 @@ let
       ln -sf /etc/xdg/waybar/config "/home/$USERNAME/.config/waybar/config"
       ln -sf /etc/xdg/waybar/style.css "/home/$USERNAME/.config/waybar/style.css"
 
+      # Copy Claude context file
+      if [ -f /etc/claude-context/CLAUDE.md ]; then
+        cp /etc/claude-context/CLAUDE.md "/home/$USERNAME/.claude/CLAUDE.md"
+      fi
+
       chown -R "$USERNAME:users" "/home/$USERNAME"
 
       # Import any staged Claude credentials from CLIX-DATA

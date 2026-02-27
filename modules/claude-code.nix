@@ -308,21 +308,36 @@ in
     claude-welcome = "/etc/clix-welcome.sh";
   };
 
-  # Deploy Claude context file to user's home
-  # This runs on every boot and handles both setup user and real user
-  system.activationScripts.claudeConfig = ''
-    # Determine the target user
-    if [ -f /etc/clix/user ]; then
-      TARGET_USER=$(cat /etc/clix/user)
-    else
-      TARGET_USER="setup"
-    fi
+  # Deploy Claude context file to /etc for first-boot wizard to copy
+  environment.etc."claude-context/CLAUDE.md" = {
+    source = claudeContextFile;
+    mode = "0644";
+  };
 
-    USER_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
-    if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
-      mkdir -p "$USER_HOME/.claude"
-      cp ${claudeContextFile} "$USER_HOME/.claude/CLAUDE.md"
-      chown -R "$TARGET_USER:users" "$USER_HOME/.claude" 2>/dev/null || true
-    fi
-  '';
+  # Service to deploy Claude context on each boot (after encrypted home is mounted)
+  systemd.services.clix-claude-config = {
+    description = "Deploy Claude context file to user home";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "clix-mount-home.service" "local-fs.target" ];
+
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "deploy-claude-config" ''
+        # Determine the target user
+        if [ -f /etc/clix/user ]; then
+          TARGET_USER=$(cat /etc/clix/user)
+        else
+          TARGET_USER="setup"
+        fi
+
+        USER_HOME=$(${pkgs.glibc.bin}/bin/getent passwd "$TARGET_USER" | cut -d: -f6)
+        if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
+          mkdir -p "$USER_HOME/.claude"
+          cp /etc/claude-context/CLAUDE.md "$USER_HOME/.claude/CLAUDE.md"
+          chown -R "$TARGET_USER:users" "$USER_HOME/.claude" 2>/dev/null || true
+        fi
+      '';
+    };
+  };
 }
