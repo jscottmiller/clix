@@ -58,6 +58,9 @@
     gnumake
     gcc
     (python3.withPackages (ps: with ps; [
+      # Package management
+      pip
+
       # Data & visualization
       matplotlib
       numpy
