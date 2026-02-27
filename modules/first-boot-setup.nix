@@ -15,6 +15,7 @@ let
     coreutils
     util-linux
     parted
+    gptfdisk    # sgdisk for GPT operations
     cloud-utils  # for growpart
     e2fsprogs
     cryptsetup
@@ -39,6 +40,12 @@ let
       exit 0
     fi
 
+    # Clean up GPT reboot marker if present (we're continuing after reboot)
+    if [ -f /etc/clix/.gpt-fixed-reboot-needed ]; then
+      echo "Continuing setup after GPT fix reboot..."
+      rm -f /etc/clix/.gpt-fixed-reboot-needed
+    fi
+
     # Find the boot device (the USB drive we're running from)
     ROOT_DEV=$(findmnt -n -o SOURCE /)
     if [ -z "$ROOT_DEV" ]; then
@@ -57,11 +64,66 @@ let
 
     echo "Boot device: $DISK, root partition: $ROOT_PART_NUM"
 
-    # Fix GPT to use full disk (important when image is written to larger drive)
-    echo "Checking GPT..."
-    echo "Fix" | parted ---pretend-input-tty "$DISK" print 2>/dev/null || true
+    # Show current partition state
+    echo "=== Current partition table ==="
+    parted -s "$DISK" unit s print || true
+    echo "=== End partition table ==="
+
+    # Get actual disk size from blockdev (this always returns the real hardware size)
+    REAL_DISK_SIZE=$(blockdev --getsize64 "$DISK")
+    REAL_DISK_GB=$((REAL_DISK_SIZE / 1024 / 1024 / 1024))
+    echo "Real disk size: $REAL_DISK_SIZE bytes (''${REAL_DISK_GB}GB)"
+
+    # Check what parted thinks the disk size is BEFORE fixing GPT
+    PARTED_SIZE_BEFORE=$(parted -s "$DISK" unit B print 2>/dev/null | grep "^Disk $DISK" | awk '{print $3}' | tr -d 'B')
+    echo "Parted sees disk as: $PARTED_SIZE_BEFORE bytes BEFORE GPT fix"
+
+    # Check if GPT needs fixing (backup header not at end of disk)
+    # sgdisk -e moves the backup GPT to the end and updates last usable LBA
+    echo "Fixing GPT - moving backup GPT to end of disk..."
+    SGDISK_OUTPUT=$(sgdisk -e "$DISK" 2>&1) || true
+    echo "$SGDISK_OUTPUT"
+
+    # Force kernel to re-read partition table
     partprobe "$DISK" 2>/dev/null || true
+    blockdev --rereadpt "$DISK" 2>/dev/null || true
+    sleep 2
+
+    # Check what parted thinks the disk size is AFTER fixing GPT
+    PARTED_SIZE_AFTER=$(parted -s "$DISK" unit B print 2>/dev/null | grep "^Disk $DISK" | awk '{print $3}' | tr -d 'B')
+    echo "Parted sees disk as: $PARTED_SIZE_AFTER bytes AFTER GPT fix"
+
+    # Compare parted's view with real size (allow 10MB tolerance for GPT overhead)
+    TOLERANCE=$((10 * 1024 * 1024))
+    SIZE_DIFF=$((REAL_DISK_SIZE - PARTED_SIZE_AFTER))
+    # Handle negative diff (use absolute value)
+    [ "$SIZE_DIFF" -lt 0 ] && SIZE_DIFF=$((-SIZE_DIFF))
+
+    echo "Size difference: $SIZE_DIFF bytes (tolerance: $TOLERANCE)"
+
+    if [ "$SIZE_DIFF" -gt "$TOLERANCE" ]; then
+      echo "Parted still sees wrong disk size - reboot required"
+
+      # Mark that we need to continue setup after reboot
+      mkdir -p /etc/clix
+      touch /etc/clix/.gpt-fixed-reboot-needed
+
+      zenity --info \
+        --title="Reboot Required" \
+        --text="Your USB drive is larger than the original image.\n\nThe system needs to reboot once to recognize the full disk size.\n\nSetup will continue automatically after reboot." \
+        --width=400
+
+      systemctl reboot
+      exit 0
+    fi
+
+    echo "Parted sees correct disk size - continuing setup"
     sleep 1
+
+    # Show partition state after GPT fix
+    echo "=== Partition table after GPT fix ==="
+    parted -s "$DISK" unit s print || true
+    echo "==="
 
     # Get disk size and calculate free space
     DISK_SIZE_BYTES=$(blockdev --getsize64 "$DISK")
@@ -195,47 +257,80 @@ let
       mkdir -p /etc/clix
 
       echo "10"
-      echo "# Expanding root partition..."
+      echo "# Creating partitions..."
 
-      if [ "$ROOT_EXPAND_GB" -gt 0 ]; then
-        # Calculate target size for root partition in sectors
-        EXPAND_SECTORS=$((ROOT_EXPAND_GB * 1024 * 1024 * 1024 / SECTOR_SIZE))
-        NEW_ROOT_END=$((ROOT_END_SECTOR + EXPAND_SECTORS))
+      # STRATEGY: Create home partition at the END of disk first,
+      # then use growpart to expand root into the space before it.
+      # This avoids complex sector calculations and GPT issues.
 
-        echo "Expanding root from sector $ROOT_END_SECTOR to $NEW_ROOT_END"
+      # Calculate where home partition should start (leave ROOT_EXPAND_GB for root)
+      # HOME_SIZE_GB was already calculated above
+      HOME_SIZE_SECTORS=$((HOME_SIZE_GB * 1024 * 1024 * 1024 / SECTOR_SIZE))
 
-        # Use parted to resize partition (growpart has issues)
-        parted -s ---pretend-input-tty "$DISK" resizepart "$ROOT_PART_NUM" "''${NEW_ROOT_END}s" <<< "Yes" || {
-          echo "Warning: Could not expand root partition, continuing..."
-        }
+      # Home partition ends at TOTAL_SECTORS - 2048 (leave room for backup GPT)
+      HOME_END_SECTOR=$((TOTAL_SECTORS - 2048))
+      # Home partition starts HOME_SIZE_SECTORS before the end, aligned to 1MB (2048 sectors)
+      HOME_START_SECTOR=$(( ((HOME_END_SECTOR - HOME_SIZE_SECTORS) / 2048) * 2048 ))
 
-        # Update ROOT_END_SECTOR for home partition calculation
-        ROOT_END_SECTOR=$NEW_ROOT_END
-
-        # Refresh kernel partition table
-        partprobe "$DISK"
-        sleep 2
-
-        # Resize filesystem to fill partition
-        echo "15"
-        echo "# Resizing filesystem..."
-        resize2fs "$ROOT_DEV" || echo "Warning: resize2fs had issues, continuing..."
-      fi
-
-      echo "20"
-      echo "# Creating home partition..."
-
-      # Home partition starts right after root, aligned to 1MB
-      HOME_START_SECTOR=$(( ((ROOT_END_SECTOR + 2048) / 2048) * 2048 ))
-      HOME_END_SECTOR=$((TOTAL_SECTORS - 2048))  # Leave space for GPT backup
-
-      echo "Creating home partition from sector $HOME_START_SECTOR to $HOME_END_SECTOR"
+      echo "Total disk sectors: $TOTAL_SECTORS"
+      echo "Home partition: sectors $HOME_START_SECTOR to $HOME_END_SECTOR (''${HOME_SIZE_GB}GB)"
 
       # Get next partition number
       LAST_PART_NUM=$(parted -s "$DISK" print | grep "^ [0-9]" | tail -1 | awk '{print $1}')
       HOME_PART_NUM=$((LAST_PART_NUM + 1))
 
-      parted -s "$DISK" mkpart CLIX-HOME ext4 "''${HOME_START_SECTOR}s" "''${HOME_END_SECTOR}s"
+      echo "Creating home partition (partition $HOME_PART_NUM)..."
+      if ! parted -s "$DISK" mkpart CLIX-HOME ext4 "''${HOME_START_SECTOR}s" "''${HOME_END_SECTOR}s" 2>&1; then
+        echo "ERROR: Failed to create home partition"
+        # Show GPT info for debugging
+        sgdisk -p "$DISK" || true
+        exit 1
+      fi
+
+      # Refresh partition table
+      partprobe "$DISK"
+      sleep 2
+
+      echo "15"
+      echo "# Expanding root partition..."
+
+      if [ "$ROOT_EXPAND_GB" -gt 0 ]; then
+        # Now use growpart to expand root - it will grow to fill space up to the home partition
+        echo "Running: growpart $DISK $ROOT_PART_NUM"
+        if growpart "$DISK" "$ROOT_PART_NUM" 2>&1; then
+          echo "growpart succeeded"
+        else
+          GROWPART_EXIT=$?
+          echo "growpart exited with code $GROWPART_EXIT"
+          # Exit code 1 means "no change needed" (already at max size or no free space before next partition)
+          if [ $GROWPART_EXIT -ne 1 ]; then
+            echo "WARNING: growpart failed with code $GROWPART_EXIT"
+            # Show partition table for debugging
+            parted -s "$DISK" unit s print || true
+          fi
+        fi
+
+        # Refresh kernel partition table
+        partprobe "$DISK"
+        sleep 2
+
+        # Get updated end sector for logging
+        ROOT_END_SECTOR=$(parted -s "$DISK" unit s print | grep "^ *$ROOT_PART_NUM " | awk '{print $3}' | tr -d 's')
+        echo "After expansion: root partition ends at sector $ROOT_END_SECTOR"
+
+        # Resize filesystem to fill partition
+        echo "18"
+        echo "# Resizing filesystem..."
+        echo "Running: resize2fs $ROOT_DEV"
+        if resize2fs "$ROOT_DEV" 2>&1; then
+          echo "resize2fs succeeded"
+        else
+          echo "WARNING: resize2fs failed with exit code $?"
+        fi
+      fi
+
+      echo "20"
+      echo "# Setting up home partition..."
 
       # Wait for partition device
       sleep 2
