@@ -1,11 +1,45 @@
 #!/usr/bin/env bash
-# CLIX Image Builder (uses sudo only for cleanup of nix store files)
+# CLIX Image Builder
 # Creates a bootable USB image with:
 #   - ESP (512MB, FAT32) - EFI boot
 #   - CLIX-DATA (512MB, FAT32) - Windows/Mac readable staging area
 #   - CLIX-ROOT (8GB, ext4) - NixOS system (expandable at first boot)
+#
+# IMPORTANT: Run with sudo for correct file ownership:
+#   sudo ./scripts/build-image.sh
 
 set -euo pipefail
+
+# Enable Nix experimental features (flakes, nix-command)
+export NIX_CONFIG="experimental-features = nix-command flakes"
+
+# Ensure nix is in PATH (needed when running via sudo)
+if ! command -v nix &>/dev/null; then
+    for nixbin in /nix/var/nix/profiles/default/bin /run/current-system/sw/bin ~/.nix-profile/bin; do
+        if [[ -d "$nixbin" ]]; then
+            export PATH="$nixbin:$PATH"
+        fi
+    done
+fi
+
+# Verify nix is available
+if ! command -v nix &>/dev/null; then
+    echo "Error: 'nix' not found in PATH. Is Nix installed?" >&2
+    exit 1
+fi
+
+# Warn if not running as root (file ownership will be wrong)
+if [[ $EUID -ne 0 ]]; then
+    echo "WARNING: Not running as root. File ownership in image may be incorrect." >&2
+    echo "         NetworkManager plugins may fail to load." >&2
+    echo "         Consider: sudo $0 $*" >&2
+    echo ""
+    read -p "Continue anyway? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
 
 # Configuration
 ESP_SIZE_MB=512
@@ -271,7 +305,7 @@ assemble_image() {
 cleanup() {
     if [[ -d "$WORK_DIR" ]]; then
         log "Cleaning up work directory..."
-        sudo rm -rf "$WORK_DIR"
+        rm -rf "$WORK_DIR"
     fi
 }
 
@@ -281,10 +315,9 @@ main() {
     log "=================="
 
     # Clean up any stale work directory from failed previous builds
-    # nix copy creates root-owned files, so we need sudo to clean up
     if [[ -d "$WORK_DIR" ]]; then
-        log "Cleaning stale work directory (requires sudo)..."
-        sudo rm -rf "$WORK_DIR" || {
+        log "Cleaning stale work directory..."
+        rm -rf "$WORK_DIR" || {
             error "Cannot clean work directory. Please run: sudo rm -rf $WORK_DIR"
         }
     fi

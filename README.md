@@ -50,14 +50,10 @@ Nix installs to `/nix` and doesn't touch your system packages. To uninstall late
 ### Build the Disk Image
 
 ```bash
-./scripts/build-image.sh
+sudo ./scripts/build-image.sh
 ```
 
-Or directly:
-
-```bash
-nix build .#image
-```
+> **Note:** The build script must run as root to ensure correct file ownership in the image. Without root, NetworkManager plugins will have wrong ownership and WiFi won't work.
 
 The disk image will be at `result/clix.img`.
 
