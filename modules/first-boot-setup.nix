@@ -151,49 +151,18 @@ let
     # ===== WELCOME SCREEN =====
     zenity --info \
       --title="Welcome to CLIX" \
-      --text="Welcome to CLIX!\n\nThis wizard will set up your system:\n\n• Create your user account\n• Set up encrypted storage for your data\n• Configure the system for your use\n\nYour USB drive has ''${FREE_GB}GB of free space available." \
+      --text="Welcome to CLIX!\n\nThis wizard will set up your system:\n\n• Set a password for your account\n• Set up encrypted storage for your data\n• Configure disk space allocation\n\nYour USB drive has ''${FREE_GB}GB of free space available." \
       --width=450
 
-    # ===== USERNAME INPUT =====
-    while true; do
-      USERNAME=$(zenity --entry \
-        --title="Create User Account" \
-        --text="Choose a username:\n\n(lowercase letters, numbers, and underscores only)" \
-        --entry-text="" \
-        --width=400) || exit 1
-
-      # Validate username
-      if [ -z "$USERNAME" ]; then
-        zenity --error --text="Username cannot be empty." --width=250
-        continue
-      fi
-
-      if ! echo "$USERNAME" | grep -qE '^[a-z_][a-z0-9_-]*$'; then
-        zenity --error --text="Invalid username.\n\nMust start with a letter or underscore,\nand contain only lowercase letters, numbers,\nunderscores, and hyphens." --width=350
-        continue
-      fi
-
-      if [ ''${#USERNAME} -gt 32 ]; then
-        zenity --error --text="Username too long (max 32 characters)." --width=250
-        continue
-      fi
-
-      # Check if user already exists
-      if getent passwd "$USERNAME" >/dev/null 2>&1; then
-        zenity --error --text="Username '$USERNAME' already exists." --width=250
-        continue
-      fi
-
-      break
-    done
-
-    echo "Username: $USERNAME"
+    # Fixed username for single-user system
+    USERNAME="clix"
+    echo "Username: $USERNAME (fixed)"
 
     # ===== PASSWORD INPUT =====
     while true; do
       PASSWORD=$(zenity --password \
         --title="Set Password" \
-        --text="Enter a password for $USERNAME:\n\n(This will also be used to encrypt your data)" \
+        --text="Choose a password:\n\n(This will be used for login and to encrypt your data)" \
         --width=400) || exit 1
 
       if [ -z "$PASSWORD" ]; then
