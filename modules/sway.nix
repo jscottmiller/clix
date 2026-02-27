@@ -29,6 +29,12 @@ let
 
     HOME_DEV=$(cat /etc/clix/home-device)
 
+    # Verify device exists
+    if [ ! -b "$HOME_DEV" ]; then
+      zenity --error --title="CLIX Error" --text="Encrypted home device not found:\n$HOME_DEV"
+      exit 1
+    fi
+
     # Prompt for password with zenity
     for attempt in 1 2 3; do
       PASSWORD=$(zenity --password --title="CLIX - Unlock Encrypted Home" \
@@ -40,7 +46,9 @@ let
         exit 1
       fi
 
-      if echo "$PASSWORD" | sudo cryptsetup open "$HOME_DEV" clix-home --key-file=-; then
+      # Use printf to avoid trailing newline from echo
+      ERROR_MSG=$(printf '%s' "$PASSWORD" | sudo cryptsetup open "$HOME_DEV" clix-home --key-file=- 2>&1)
+      if [ $? -eq 0 ]; then
         sudo mount /dev/mapper/clix-home /home
 
         # Ensure user's home directory has correct ownership
@@ -52,7 +60,7 @@ let
         exit 0
       else
         if [ $attempt -lt 3 ]; then
-          zenity --warning --title="CLIX" --text="Incorrect password.\nAttempt $attempt of 3."
+          zenity --warning --title="CLIX" --text="Unlock failed (attempt $attempt of 3).\n\n$ERROR_MSG"
         fi
       fi
     done
