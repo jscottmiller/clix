@@ -13,7 +13,7 @@ let
     - **OS**: NixOS (unstable channel)
     - **Display**: Sway (Wayland tiling window manager)
     - **Terminal**: foot
-    - **User**: clix (passwordless sudo enabled)
+    - **User**: Custom (created at first boot, passwordless sudo enabled)
     - **Persistence**: Full - changes to the root filesystem persist across reboots
 
     ## Key Capabilities
@@ -194,7 +194,7 @@ let
     5. **UI Automation**: You can click, type, and control windows. Use screenshot → analyze → act loops.
 
     ## Working Directory
-    Default working directory is /home/clix. Use /tmp for temporary files.
+    Default working directory is your home folder. Use /tmp for temporary files.
   '';
 
   welcomeScript = pkgs.writeShellScript "clix-welcome" ''
@@ -281,8 +281,9 @@ in
   # ydotool for input simulation (handles daemon + socket permissions)
   programs.ydotool.enable = true;
 
-  # Grant clix user access to ydotool socket
-  users.users.clix.extraGroups = [ "ydotool" ];
+  # Grant setup user access to ydotool socket
+  # (The real user created at first boot is added to ydotool group by useradd)
+  users.users.setup.extraGroups = [ "ydotool" ];
 
   # Deploy welcome script
   environment.etc."clix-welcome.sh" = {
@@ -307,10 +308,13 @@ in
     claude-welcome = "/etc/clix-welcome.sh";
   };
 
-  # Deploy Claude context file and ensure config directory exists
-  system.activationScripts.claudeConfig = ''
-    mkdir -p /home/clix/.claude
-    cp ${claudeContextFile} /home/clix/.claude/CLAUDE.md
-    chown -R clix:users /home/clix/.claude
-  '';
+  # Deploy Claude context file to /etc for first-boot wizard to copy
+  environment.etc."claude-context/CLAUDE.md" = {
+    source = claudeContextFile;
+    mode = "0644";
+  };
+
+  # NOTE: CLAUDE.md deployment is handled in:
+  # - First boot: modules/first-boot-setup.nix (in the wizard)
+  # - Subsequent boots: modules/first-boot-setup.nix (in autostartScript, after encrypted home unlock)
 }

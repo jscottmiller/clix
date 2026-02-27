@@ -206,8 +206,8 @@ exec /run/current-system/sw/libexec/polkit-gnome-authentication-agent-1
 # Network manager applet
 exec nm-applet --indicator
 
-# Auto-start Claude Code welcome terminal (docked left)
-exec $term --app-id=claude-terminal -e /etc/clix-welcome.sh
+# First boot: run setup wizard. After setup: start Claude terminal
+exec /etc/clix-autostart.sh
 
 # Include additional config files
 include /etc/sway/config.d/*

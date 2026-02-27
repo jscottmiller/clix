@@ -1,51 +1,40 @@
 { config, pkgs, lib, ... }:
 
 # This module handles the CLIX-DATA partition:
-# - Mounts it on boot
-# - Imports WiFi credentials to NetworkManager
-# - Imports Claude credentials to user home
+# - CLIX-DATA is baked into the image (always exists)
+# - On each boot, imports WiFi credentials to NetworkManager
+# - After setup, imports Claude credentials to user home
 
 let
   importScript = pkgs.writeShellScript "clix-import-data" ''
-    export PATH="${pkgs.util-linux}/bin:${pkgs.coreutils}/bin:${pkgs.iw}/bin:$PATH"
+    export PATH="${lib.makeBinPath (with pkgs; [ util-linux coreutils iw networkmanager ])}:$PATH"
     set -e
     DATA_MOUNT="/mnt/clix-data"
 
     echo "CLIX: Looking for data partition..."
 
-    # Find the data partition by looking at the boot device
-    # Layout: partition 1 = CLIX-DATA, partition 2 = EFI, partition 3 = root
-    # This is more reliable than blkid label lookup during early boot
+    # Find CLIX-DATA partition by label
+    DATA_DEV=$(blkid -L CLIX-DATA 2>/dev/null || true)
 
-    # Get the root device and strip partition number to find base device
-    ROOT_DEV=$(findmnt -n -o SOURCE /)
-    echo "CLIX: Root device is $ROOT_DEV"
-
-    # Handle both /dev/sdX3 and /dev/nvme0n1p3 style names
-    if [[ "$ROOT_DEV" =~ ^/dev/nvme ]]; then
-      BASE_DEV=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
-      DATA_DEV="''${BASE_DEV}p1"
-    elif [[ "$ROOT_DEV" =~ ^/dev/sd ]]; then
-      BASE_DEV=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
-      DATA_DEV="''${BASE_DEV}1"
-    else
-      echo "CLIX: Unknown device naming scheme for $ROOT_DEV, trying blkid fallback..."
-      DATA_DEV=$(blkid -L CLIX-DATA 2>/dev/null || true)
+    if [ -z "$DATA_DEV" ]; then
+      echo "CLIX: CLIX-DATA partition not found"
+      exit 0
     fi
 
-    echo "CLIX: Looking for data partition at $DATA_DEV"
-
-    # Verify the partition exists and is FAT
     if [ ! -b "$DATA_DEV" ]; then
-      echo "CLIX: Data partition $DATA_DEV not found, skipping import"
+      echo "CLIX: Data partition $DATA_DEV not a block device"
       exit 0
     fi
 
     echo "CLIX: Found data partition at $DATA_DEV"
 
-    # Mount the data partition
+    # Mount the data partition (read-only)
     mkdir -p "$DATA_MOUNT"
-    mount -o ro "$DATA_DEV" "$DATA_MOUNT"
+    if ! mount -o ro "$DATA_DEV" "$DATA_MOUNT"; then
+      echo "CLIX: Failed to mount data partition"
+      rmdir "$DATA_MOUNT" 2>/dev/null || true
+      exit 0
+    fi
 
     # Set wireless regulatory domain (must happen before NetworkManager)
     if [ -f "$DATA_MOUNT/network/regdomain" ]; then
@@ -58,7 +47,8 @@ let
 
     # Import NetworkManager connections
     if [ -d "$DATA_MOUNT/network" ]; then
-      echo "CLIX: Importing network configurations..."
+      echo "CLIX: Checking for network configurations..."
+      mkdir -p /etc/NetworkManager/system-connections
       for conn in "$DATA_MOUNT/network"/*.nmconnection; do
         if [ -f "$conn" ]; then
           name=$(basename "$conn")
@@ -71,14 +61,19 @@ let
       nmcli connection reload 2>/dev/null || true
     fi
 
-    # Import Claude credentials (using cp -rT to include dotfiles)
-    if [ -d "$DATA_MOUNT/claude" ] && [ -n "$(ls -A "$DATA_MOUNT/claude" 2>/dev/null)" ]; then
-      echo "CLIX: Importing Claude credentials..."
-      mkdir -p /home/clix/.claude
-      cp -rT "$DATA_MOUNT/claude" /home/clix/.claude/
-      chown -R clix:users /home/clix/.claude
-      chmod 700 /home/clix/.claude
-      find /home/clix/.claude -type f -exec chmod 600 {} \;
+    # Import Claude credentials if user is set up
+    if [ -f /etc/clix/user ] && [ -f /etc/clix/.setup-complete ]; then
+      USERNAME=$(cat /etc/clix/user)
+      USER_HOME="/home/$USERNAME"
+
+      if [ -d "$DATA_MOUNT/claude" ] && [ -n "$(ls -A "$DATA_MOUNT/claude" 2>/dev/null)" ]; then
+        echo "CLIX: Importing Claude credentials for $USERNAME..."
+        mkdir -p "$USER_HOME/.claude"
+        cp -rT "$DATA_MOUNT/claude" "$USER_HOME/.claude/"
+        chown -R "$USERNAME:users" "$USER_HOME/.claude"
+        chmod 700 "$USER_HOME/.claude"
+        find "$USER_HOME/.claude" -type f -exec chmod 600 {} \;
+      fi
     fi
 
     # Unmount
@@ -93,8 +88,9 @@ in
   systemd.services.clix-import-data = {
     description = "Import CLIX data from data partition";
     wantedBy = [ "multi-user.target" ];
-    before = [ "network-online.target" "display-manager.service" ];
+    before = [ "network-online.target" "display-manager.service" "NetworkManager.service" ];
     after = [ "local-fs.target" ];
+
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${importScript}";
@@ -107,7 +103,7 @@ in
     after = [ "clix-import-data.service" ];
   };
 
-  # Ensure blkid is available
+  # Ensure required tools are available
   environment.systemPackages = with pkgs; [
     util-linux  # for blkid
   ];

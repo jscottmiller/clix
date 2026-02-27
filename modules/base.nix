@@ -77,7 +77,8 @@
   # Enable nix flakes
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
-    trusted-users = [ "root" "clix" ];
+    # Trust wheel group for nix operations
+    trusted-users = [ "root" "@wheel" ];
   };
 
   # Allow unfree packages (for some proprietary tools if needed)
@@ -87,16 +88,42 @@
   hardware.enableRedistributableFirmware = true;
   hardware.enableAllFirmware = true;
 
-  # Create the clix user
-  users.users.clix = {
+  # Allow mutable users - the real user is created at first boot
+  users.mutableUsers = true;
+
+  # Setup user - used only during first-boot wizard
+  # After setup, a real user is created and this account is disabled
+  users.users.setup = {
     isNormalUser = true;
-    description = "CLIX User";
+    uid = 1000;  # Fixed UID for consistency
+    description = "CLIX Setup";
     extraGroups = [ "wheel" "networkmanager" "video" "audio" ];
-    initialPassword = "";
+    hashedPassword = "$6$SrkbSIutIhbKnw6P$61lSUqCqqbuULHckuKmWLPWHW3YNrDHtOUT78bhUK4PyFmU7PY3gYzrKv1UQ1XndGws6n7Wl8uxzSjR3dpUxT.";  # password: clix
     shell = pkgs.bash;
   };
 
-  # Passwordless sudo for clix user
+  # Root password (unlocks root account) - password: clix
+  users.users.root.hashedPassword = "$6$SrkbSIutIhbKnw6P$61lSUqCqqbuULHckuKmWLPWHW3YNrDHtOUT78bhUK4PyFmU7PY3gYzrKv1UQ1XndGws6n7Wl8uxzSjR3dpUxT.";
+
+  # Autologin on TTY2 for debugging (Ctrl+Alt+F2)
+  # Use setup user since root might be locked
+  systemd.services."autovt@tty2" = {
+    description = "Debug terminal on tty2";
+    after = [ "systemd-user-sessions.service" "plymouth-quit-wait.service" "getty-pre.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "idle";
+      ExecStart = "${pkgs.util-linux}/bin/agetty --autologin setup --noclear tty2 $TERM";
+      Restart = "always";
+      TTYPath = "/dev/tty2";
+      TTYReset = "yes";
+      TTYVHangup = "yes";
+      StandardInput = "tty";
+      StandardOutput = "tty";
+    };
+  };
+
+  # Passwordless sudo for wheel group (setup user and future user)
   security.sudo.wheelNeedsPassword = false;
 
   # Enable sound with pipewire
