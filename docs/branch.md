@@ -276,3 +276,11 @@ Built with `sudo ./scripts/build-image.sh`
 2. Updated `README.md` to document running build with sudo
 
 **Root cause confirmed:** File ownership. When built as non-root, nix store files get UID 1000 ownership, causing NetworkManager to skip plugins for security reasons.
+
+#### Follow-up: Home directory ownership
+
+After fixing WiFi with sudo build, Claude wouldn't start - home directory was owned by root.
+
+**Cause:** The encrypted home partition's root directory is owned by root after ext4 formatting. The first-boot wizard creates the user but didn't chown the home directory early enough.
+
+**Fix:** Added early `chown "$USERNAME:users" "/home/$USERNAME"` in first-boot-setup.nix right after user creation.

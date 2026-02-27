@@ -306,6 +306,9 @@ let
       echo "75"
       echo "# Creating user account..."
 
+      # Ensure /home has correct permissions (ext4 root is owned by root after format)
+      chmod 755 /home
+
       # Create the user with appropriate groups
       # Don't specify UID (setup user has 1000), use proper NixOS shell path
       useradd -m -G wheel,networkmanager,video,audio -s ${pkgs.bash}/bin/bash "$USERNAME"
@@ -313,7 +316,8 @@ let
       # Set password
       echo "$USERNAME:$PASSWORD" | chpasswd
 
-      # Set up home directory permissions
+      # Set up home directory permissions and ownership
+      chown "$USERNAME:users" "/home/$USERNAME"
       chmod 700 "/home/$USERNAME"
 
       echo "85"
