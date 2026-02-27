@@ -284,3 +284,26 @@ After fixing WiFi with sudo build, Claude wouldn't start - home directory was ow
 **Cause:** The encrypted home partition's root directory is owned by root after ext4 formatting. The first-boot wizard creates the user but didn't chown the home directory early enough.
 
 **Fix:** Added early `chown "$USERNAME:users" "/home/$USERNAME"` in first-boot-setup.nix right after user creation.
+
+#### Follow-up: CLAUDE.md not deployed
+
+Claude Code couldn't find its context file (~/.claude/CLAUDE.md).
+
+**Cause:** Activation scripts run at boot before user exists (first boot) or before encrypted home is mounted (subsequent boots).
+
+**Fix:**
+- Deploy CLAUDE.md to `/etc/claude-context/` (always available)
+- First-boot wizard copies it to user's `~/.claude/`
+- Added `clix-claude-config.service` to copy on subsequent boots after encrypted home mounts
+
+---
+
+## Current Issue: Encrypted Home Not Mounting
+
+The encrypted user partition (CLIX-HOME) is not being mounted as /home on subsequent boots.
+
+**To investigate:**
+- Check `clix-mount-home.service` status
+- Check if `/etc/clix/.setup-complete` exists
+- Check if `/etc/clix/home-device` contains correct device path
+- Check LUKS unlock process
