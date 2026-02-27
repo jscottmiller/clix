@@ -314,30 +314,7 @@ in
     mode = "0644";
   };
 
-  # Service to deploy Claude context on each boot (after encrypted home is mounted)
-  systemd.services.clix-claude-config = {
-    description = "Deploy Claude context file to user home";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "clix-mount-home.service" "local-fs.target" ];
-
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = pkgs.writeShellScript "deploy-claude-config" ''
-        # Determine the target user
-        if [ -f /etc/clix/user ]; then
-          TARGET_USER=$(cat /etc/clix/user)
-        else
-          TARGET_USER="setup"
-        fi
-
-        USER_HOME=$(${pkgs.glibc.bin}/bin/getent passwd "$TARGET_USER" | cut -d: -f6)
-        if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
-          mkdir -p "$USER_HOME/.claude"
-          cp /etc/claude-context/CLAUDE.md "$USER_HOME/.claude/CLAUDE.md"
-          chown -R "$TARGET_USER:users" "$USER_HOME/.claude" 2>/dev/null || true
-        fi
-      '';
-    };
-  };
+  # NOTE: CLAUDE.md deployment is handled in:
+  # - First boot: modules/first-boot-setup.nix (in the wizard)
+  # - Subsequent boots: modules/first-boot-setup.nix (in autostartScript, after encrypted home unlock)
 }

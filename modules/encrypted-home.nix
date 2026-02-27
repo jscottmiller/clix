@@ -126,40 +126,9 @@ in
     cryptsetup
   ];
 
-  # Systemd service to unlock and mount encrypted /home
-  # Runs early in boot, before display manager
-  systemd.services.clix-mount-home = {
-    description = "Unlock and mount CLIX encrypted home";
-    wantedBy = [ "local-fs.target" ];
-    before = [ "local-fs.target" "display-manager.service" "greetd.service" ];
-    after = [ "systemd-udev-settle.service" "systemd-ask-password-console.service" ];
-    wants = [ "systemd-ask-password-console.service" ];
-
-    unitConfig = {
-      DefaultDependencies = false;
-      # Only run if setup has been completed
-      ConditionPathExists = "/etc/clix/.setup-complete";
-    };
-
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "${mountHomeScript}";
-      ExecStop = "${unmountHomeScript}";
-      # TTY access for password prompt
-      StandardInput = "tty";
-      StandardOutput = "tty";
-      TTYPath = "/dev/console";
-      TTYReset = true;
-      TTYVHangup = true;
-    };
-  };
-
-  # Ensure display manager waits for /home to be mounted
-  systemd.services.greetd = lib.mkIf config.services.greetd.enable {
-    after = [ "clix-mount-home.service" ];
-    wants = [ "clix-mount-home.service" ];
-  };
+  # NOTE: The TTY-based unlock service is disabled.
+  # Encrypted home is now unlocked via zenity GUI prompt in sway autostart.
+  # See modules/sway.nix (unlockHomeScript) and modules/first-boot-setup.nix (autostartScript)
 
   # Clean unmount on shutdown
   systemd.services.clix-unmount-home-shutdown = {

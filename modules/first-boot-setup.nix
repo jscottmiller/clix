@@ -480,7 +480,8 @@ let
   '';
 
   # Autostart script - runs from sway config
-  # Checks if setup is complete, runs wizard if not, otherwise starts Claude terminal
+  # Checks if setup is complete, runs wizard if not
+  # If encrypted home, unlocks it first, then starts Claude terminal
   autostartScript = pkgs.writeShellScript "clix-autostart" ''
     #!/usr/bin/env bash
 
@@ -489,7 +490,30 @@ let
       # Use -E to preserve WAYLAND_DISPLAY and other env vars for zenity
       sudo -E ${firstBootWizard}
     else
-      # Setup complete - start Claude terminal
+      # Setup complete - check if we need to unlock encrypted home
+      if [ -f /etc/clix/.home-encrypted ]; then
+        # Run the graphical unlock script
+        /etc/clix/unlock-home.sh
+
+        # If unlock failed or was cancelled, don't start Claude
+        if ! mountpoint -q /home 2>/dev/null; then
+          ${pkgs.zenity}/bin/zenity --warning --title="CLIX" \
+            --text="Home directory not mounted.\nClaude Code will not start." --width=300
+          exit 1
+        fi
+
+        # Deploy CLAUDE.md now that home is mounted
+        if [ -f /etc/clix/user ]; then
+          USERNAME=$(cat /etc/clix/user)
+          if [ -d "/home/$USERNAME" ]; then
+            mkdir -p "/home/$USERNAME/.claude"
+            cp /etc/claude-context/CLAUDE.md "/home/$USERNAME/.claude/CLAUDE.md" 2>/dev/null || true
+            chown -R "$USERNAME:users" "/home/$USERNAME/.claude" 2>/dev/null || true
+          fi
+        fi
+      fi
+
+      # Start Claude terminal
       exec foot --app-id=claude-terminal -e /etc/clix-welcome.sh
     fi
   '';

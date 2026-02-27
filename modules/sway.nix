@@ -1,6 +1,66 @@
 { config, pkgs, lib, self, ... }:
 
 let
+  # Script to unlock encrypted home with zenity
+  unlockHomeScript = pkgs.writeShellScript "clix-unlock-home-gui" ''
+    export PATH="${lib.makeBinPath (with pkgs; [ coreutils cryptsetup util-linux zenity glib ])}:$PATH"
+
+    # Check if encrypted home is configured
+    if [ ! -f /etc/clix/.home-encrypted ]; then
+      exit 0
+    fi
+
+    # Check if already mounted
+    if mountpoint -q /home 2>/dev/null; then
+      exit 0
+    fi
+
+    # Check if already unlocked but not mounted
+    if [ -b /dev/mapper/clix-home ]; then
+      sudo mount /dev/mapper/clix-home /home
+      exit 0
+    fi
+
+    # Get home device
+    if [ ! -f /etc/clix/home-device ]; then
+      zenity --error --title="CLIX Error" --text="Encrypted home not configured.\n/etc/clix/home-device not found."
+      exit 1
+    fi
+
+    HOME_DEV=$(cat /etc/clix/home-device)
+
+    # Prompt for password with zenity
+    for attempt in 1 2 3; do
+      PASSWORD=$(zenity --password --title="CLIX - Unlock Encrypted Home" \
+        --text="Enter your encryption password:" 2>/dev/null)
+
+      if [ -z "$PASSWORD" ]; then
+        # User cancelled
+        zenity --warning --title="CLIX" --text="Home directory not unlocked.\nSome features may not work."
+        exit 1
+      fi
+
+      if echo "$PASSWORD" | sudo cryptsetup open "$HOME_DEV" clix-home --key-file=-; then
+        sudo mount /dev/mapper/clix-home /home
+
+        # Ensure user's home directory has correct ownership
+        if [ -f /etc/clix/user ]; then
+          USERNAME=$(cat /etc/clix/user)
+          sudo chown -R "$USERNAME:users" "/home/$USERNAME" 2>/dev/null || true
+        fi
+
+        exit 0
+      else
+        if [ $attempt -lt 3 ]; then
+          zenity --warning --title="CLIX" --text="Incorrect password.\nAttempt $attempt of 3."
+        fi
+      fi
+    done
+
+    zenity --error --title="CLIX Error" --text="Too many failed attempts.\nHome directory not unlocked."
+    exit 1
+  '';
+
   # Sway start script with proper environment and logging
   swayStartScript = pkgs.writeShellScript "clix-start-sway" ''
     # Log everything for debugging
@@ -32,92 +92,28 @@ let
   '';
 in
 {
-  # Unlock encrypted home partition at boot (only after first-boot setup)
-  systemd.services.clix-unlock-home = {
-    description = "Unlock CLIX encrypted home";
-    wantedBy = [ "local-fs.target" ];
-    before = [ "local-fs.target" ];
-    after = [ "systemd-udev-settle.service" ];
-    unitConfig = {
-      ConditionPathExists = "/etc/clix/.home-encrypted";
-      DefaultDependencies = false;
-    };
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      StandardInput = "tty";
-      StandardOutput = "tty";
-      TTYPath = "/dev/tty1";
-      TTYReset = true;
-      TTYVHangup = true;
-    };
-    path = [ pkgs.coreutils pkgs.cryptsetup pkgs.util-linux pkgs.ncurses ];
-    script = ''
-      # Check if already unlocked
-      if [ -b /dev/mapper/clix-home ]; then
-        mount /dev/mapper/clix-home /home 2>/dev/null || true
-        exit 0
-      fi
-
-      # Get the home device
-      if [ ! -f /etc/clix/home-device ]; then
-        exit 0
-      fi
-
-      HOME_DEV=$(cat /etc/clix/home-device)
-
-      if [ ! -b "$HOME_DEV" ]; then
-        echo "Home device $HOME_DEV not found"
-        exit 1
-      fi
-
-      clear
-      echo ""
-      echo "  ╔═══════════════════════════════════════╗"
-      echo "  ║           CLIX - Unlock Home          ║"
-      echo "  ╚═══════════════════════════════════════╝"
-      echo ""
-
-      for attempt in 1 2 3; do
-        echo -n "  Enter encryption password: "
-        read -s PASSWORD
-        echo ""
-
-        if echo "$PASSWORD" | cryptsetup open "$HOME_DEV" clix-home --key-file=-; then
-          echo "  Unlocked!"
-          mount /dev/mapper/clix-home /home
-          sleep 1
-          exit 0
-        else
-          echo "  Incorrect password. Attempt $attempt of 3."
-        fi
-      done
-
-      echo "  Too many failed attempts."
-      exit 1
-    '';
-  };
-
   # Greetd - we manage the config dynamically
   services.greetd.enable = true;
 
   # Override greetd service entirely to use our dynamic config
+  # After setup: auto-login as user (encryption password prompt happens in sway)
   systemd.services.greetd = {
     serviceConfig = {
       ExecStartPre = let
         configScript = pkgs.writeShellScript "clix-greetd-setup" ''
           mkdir -p /run/clix
-          if [ -f /etc/clix/.setup-complete ]; then
-            # After setup: require login
+          if [ -f /etc/clix/.setup-complete ] && [ -f /etc/clix/user ]; then
+            # After setup: auto-login as the created user
+            USERNAME=$(cat /etc/clix/user)
             cat > /run/clix/greetd.toml << EOF
 [terminal]
 vt = 1
 
 [default_session]
-command = "${pkgs.greetd.greetd}/bin/agreety --cmd ${swayStartScript}"
-user = "root"
+command = "${swayStartScript}"
+user = "$USERNAME"
 EOF
-            echo "Greetd: configured with login prompt"
+            echo "Greetd: configured for auto-login as $USERNAME"
           else
             # First boot: auto-login as setup
             cat > /run/clix/greetd.toml << EOF
@@ -134,6 +130,12 @@ EOF
       in "${configScript}";
       ExecStart = lib.mkForce "${pkgs.greetd.greetd}/bin/greetd --config /run/clix/greetd.toml";
     };
+  };
+
+  # Deploy unlock script for sway autostart
+  environment.etc."clix/unlock-home.sh" = {
+    source = unlockHomeScript;
+    mode = "0755";
   };
 
 
