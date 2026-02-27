@@ -200,10 +200,42 @@ let
     sudo nixos-install
     ```
 
+    ## Session Journal
+
+    Maintain a journal to preserve context across sessions. Write observations,
+    user preferences, project notes, and useful context.
+
+    **Location:** `~/.clix/journal/YYYY-MM/DD.md`
+
+    **At session start:**
+    ```bash
+    # Read recent entries for context
+    rg -l . ~/.clix/journal/ 2>/dev/null | tail -5 | xargs cat 2>/dev/null
+    ```
+
+    **During/after session:**
+    ```bash
+    # Create today's entry (append mode)
+    mkdir -p ~/.clix/journal/$(date +%Y-%m)
+    cat >> ~/.clix/journal/$(date +%Y-%m)/$(date +%d).md << 'EOF'
+
+    ## Session $(date +%H:%M)
+    - [observations, preferences learned, project context, etc.]
+    EOF
+    ```
+
+    **Search past entries:**
+    ```bash
+    rg "pattern" ~/.clix/journal/
+    ```
+
+    Keep entries concise. Focus on: user preferences, project context, learned patterns,
+    unfinished tasks, and anything useful for future sessions.
+
     ## Important Notes
 
     1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes
-       installed packages (via nix-env), configuration changes, and files in /home/clix.
+       installed packages (via nix-env), configuration changes, and user files.
     2. **Full Access**: You have passwordless sudo and full system access.
     3. **No Confirmation Needed**: You are running with --dangerously-skip-permissions.
        Take direct action without asking for permission on routine operations.
