@@ -57,24 +57,7 @@
     # Development basics
     gnumake
     gcc
-    (python3.withPackages (ps: with ps; [
-      # Package management
-      pip
-
-      # Data & visualization
-      matplotlib
-      numpy
-      pandas
-      pillow
-
-      # GUI & apps
-      tkinter
-
-      # Utilities
-      requests
-      pyyaml
-      rich        # pretty terminal output
-    ]))
+    python3  # Use nix-shell for additional packages
   ];
 
   # Enable nix flakes

@@ -87,15 +87,19 @@ let
     ```
 
     ### Python Environment
-    A full Python 3 environment is available with useful libraries:
-    - **matplotlib** - plotting and visualization
-    - **numpy** - numerical computing
-    - **pandas** - data manipulation and analysis
-    - **pillow** - image processing
-    - **tkinter** - GUI applications
-    - **requests** - HTTP client
-    - **pyyaml** - YAML parsing
-    - **rich** - beautiful terminal output
+    Python 3 is available. Use nix-shell to get additional packages:
+
+    ```bash
+    # Temporary shell with packages
+    nix-shell -p python3Packages.matplotlib python3Packages.numpy python3Packages.pandas
+
+    # Then run your script
+    python my_script.py
+    ```
+
+    Common Python packages: `python3Packages.matplotlib`, `python3Packages.numpy`,
+    `python3Packages.pandas`, `python3Packages.pillow`, `python3Packages.requests`,
+    `python3Packages.pyyaml`, `python3Packages.rich`
 
     Use `imv` to view generated images: `imv /tmp/plot.png`
 
@@ -129,10 +133,22 @@ let
     5. Take another screenshot to verify result
 
     ### Package Management
-    This is NixOS - packages are managed declaratively:
-    - `nix-shell -p <package>` - temporary package in current shell
-    - `nix-env -iA nixos.<package>` - install for current session (lost on reboot)
-    - For permanent changes, edit `/etc/nixos/configuration.nix` and run `sudo nixos-rebuild switch`
+    This is NixOS - always use nix for packages, never pip/npm/cargo install globally.
+
+    **Temporary (preferred for most tasks):**
+    ```bash
+    nix-shell -p nodejs ripgrep ffmpeg    # Get packages for current shell
+    ```
+
+    **Permanent (survives reboot):**
+    ```bash
+    # Edit the system configuration
+    sudo nano /etc/nixos/configuration.nix
+    # Add packages to environment.systemPackages
+    sudo nixos-rebuild switch
+    ```
+
+    Search for packages: `nix search nixpkgs <name>`
 
     ### Sway Window Manager
     Key bindings (Super = Windows/Meta key):
