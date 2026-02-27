@@ -298,12 +298,16 @@ Claude Code couldn't find its context file (~/.claude/CLAUDE.md).
 
 ---
 
-## Current Issue: Encrypted Home Not Mounting
+## Encrypted Home Unlock (FIXED)
 
-The encrypted user partition (CLIX-HOME) is not being mounted as /home on subsequent boots.
+The TTY-based LUKS password prompt conflicted with greetd (both wanted the terminal).
 
-**To investigate:**
-- Check `clix-mount-home.service` status
-- Check if `/etc/clix/.setup-complete` exists
-- Check if `/etc/clix/home-device` contains correct device path
-- Check LUKS unlock process
+**Solution:** Move unlock to graphical prompt in sway autostart:
+
+1. Greetd auto-logins as user (no login password needed)
+2. Sway starts, autostart script runs
+3. Zenity prompts for LUKS encryption password
+4. Home mounted, CLAUDE.md deployed
+5. Claude terminal starts
+
+User only enters ONE password (the encryption password), which also serves as authentication.
