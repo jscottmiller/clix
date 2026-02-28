@@ -141,7 +141,12 @@ in
 }
 CONFIGEOF
       chmod 644 /etc/nixos/configuration.nix
-      chown 1000:users /etc/nixos/configuration.nix
+    fi
+
+    # Make configuration.nix owned by the CLIX user (if setup is complete)
+    if [ -f /etc/clix/user ]; then
+      USERNAME=$(cat /etc/clix/user)
+      chown "$USERNAME:users" /etc/nixos/configuration.nix 2>/dev/null || true
     fi
   '';
 
