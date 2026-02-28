@@ -301,13 +301,20 @@ EOF
       echo ""
     fi
 
+    # Handle shutdown signals gracefully
+    trap 'echo "Shutting down..."; exit 0' SIGTERM SIGINT SIGHUP
+
     # Run Claude in a loop - restarts if it exits or is closed
     # Permissions are configured via ~/.claude/settings.json
     while true; do
       claude
+      EXIT_CODE=$?
+      # Exit if claude was killed by signal (128+signal) or shutdown is happening
+      [ $EXIT_CODE -gt 128 ] && exit 0
       echo ""
       echo "Claude exited. Restarting in 2 seconds... (Ctrl+C to stop)"
-      sleep 2
+      sleep 2 &
+      wait $! 2>/dev/null || exit 0  # Exit if sleep is interrupted
     done
   '';
 in
