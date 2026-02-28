@@ -2,7 +2,7 @@
 # CLIX Image Builder
 # Creates a bootable USB image with:
 #   - ESP (512MB, FAT32) - EFI boot
-#   - CLIX-DATA (512MB, FAT32) - Windows/Mac readable staging area
+#   - CLIX-DATA (2GB, FAT32) - Windows/Mac readable staging area
 #   - CLIX-ROOT (8GB, ext4) - NixOS system (expandable at first boot)
 #
 # IMPORTANT: Run with sudo for correct file ownership:
@@ -43,7 +43,7 @@ fi
 
 # Configuration
 ESP_SIZE_MB=512
-DATA_SIZE_MB=512
+DATA_SIZE_MB=2048
 ROOT_SIZE_MB=8192
 TOTAL_SIZE_MB=$((ESP_SIZE_MB + DATA_SIZE_MB + ROOT_SIZE_MB + 2))  # +2 for GPT overhead
 
