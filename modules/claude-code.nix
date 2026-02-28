@@ -150,10 +150,16 @@ let
 
     **Declarative install (the NixOS way):**
     ```bash
-    # Edit system configuration (requires sudo - use Bash with sudo tee)
-    edit-config
-
+    # Edit /etc/nixos/configuration.nix (you have write permission)
     # Add packages to environment.systemPackages, then:
+    rebuild
+    ```
+
+    **If rebuild fails with missing store paths:**
+    The flake.lock pins a specific nixpkgs version from when CLIX was built.
+    If that version is stale, update it first:
+    ```bash
+    sudo nix flake update /etc/nixos
     rebuild
     ```
 
