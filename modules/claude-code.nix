@@ -136,20 +136,22 @@ let
     ### Package Management
     This is NixOS - always use nix for packages, never pip/npm/cargo install globally.
 
-    **Temporary (preferred for most tasks):**
+    **Temporary (current shell only):**
     ```bash
     nix-shell -p nodejs ripgrep ffmpeg    # Get packages for current shell
     ```
 
     **Permanent (survives reboot):**
     ```bash
-    # Edit the system configuration
-    sudo nano /etc/nixos/configuration.nix
-    # Add packages to environment.systemPackages
-    sudo nixos-rebuild switch
+    nix profile install nixpkgs#obs-studio   # Install a package
+    nix profile list                          # List installed packages
+    nix profile remove obs-studio             # Remove a package
     ```
 
-    Search for packages: `nix search nixpkgs <name>`
+    **Search for packages:**
+    ```bash
+    nix search nixpkgs <name>
+    ```
 
     ### Sway Window Manager
     Key bindings (Super = Windows/Meta key):

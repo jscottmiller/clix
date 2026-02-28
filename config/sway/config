@@ -42,25 +42,14 @@ input type:touch {
 }
 
 # ─────────────────────────────────────────
-# Claude Terminal - Docked Left
-# ─────────────────────────────────────────
-
-# Claude terminal stays on the left, takes 30% width, visible on all workspaces
-for_window [app_id="claude-terminal"] {
-    move left
-    resize set width 30 ppt
-    sticky enable
-}
-
-# ─────────────────────────────────────────
 # Key Bindings
 # ─────────────────────────────────────────
 
 # Start terminal
 bindsym $mod+Return exec $term
 
-# Start Claude Code terminal (with custom app_id for window rules)
-bindsym $mod+c exec $term --app-id=claude-terminal -e /etc/clix-welcome.sh
+# Start Claude Code terminal
+bindsym $mod+c exec $term -e /etc/clix-welcome.sh
 
 # Kill focused window
 bindsym $mod+Shift+q kill

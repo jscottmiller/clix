@@ -2,7 +2,16 @@ Claude Authentication
 =====================
 
 On first boot, run `claude` in the terminal and sign in through Firefox.
-Your credentials will be saved for future sessions (until reboot).
+Your credentials will be saved to your encrypted home directory.
 
-Note: CLIX is ephemeral - credentials are stored in RAM and lost on reboot.
-You'll need to sign in again each time you boot.
+Claude Settings
+===============
+
+The settings.json file in this folder controls which commands Claude can
+run without asking for permission. It's moved to ~/.claude/ on first boot.
+
+To customize permissions before first boot, edit:
+  CLIX-PUBLIC/clix/claude/settings.json
+
+After first boot, edit:
+  ~/.claude/settings.json

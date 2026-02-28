@@ -12,7 +12,8 @@ CLIX-PUBLIC/
 │   ├── network/
 │   │   ├── regdomain             # WiFi regulatory domain (e.g., "US")
 │   │   └── *.nmconnection        # NetworkManager connection files
-│   └── claude/                   # Claude credentials (optional)
+│   └── claude/
+│       └── settings.json         # Claude permissions (edit before first boot)
 └── README.txt                    # (auto-generated on partition)
 ```
 
@@ -65,7 +66,7 @@ sudo cp /etc/NetworkManager/system-connections/MyWiFi.nmconnection ./network/
 
 ## Claude Authentication
 
-On first boot, run `claude` in the terminal and sign in through Firefox. Your credentials will be saved for the session (until reboot).
+On first boot, run `claude` in the terminal and sign in through Firefox. Your credentials will be saved to your encrypted home directory.
 
 ## Writing to the Data Partition
 
@@ -82,7 +83,6 @@ sudo mount /dev/sdX1 /mnt
 # Copy your configs
 sudo mkdir -p /mnt/clix
 sudo cp -r network/ /mnt/clix/
-sudo cp -r claude/ /mnt/clix/
 
 # Unmount
 sudo umount /mnt
