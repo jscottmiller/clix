@@ -5,7 +5,7 @@ let
   claudeContextFile = pkgs.writeText "CLAUDE.md" ''
     # CLIX Environment Context
 
-    You are running inside CLIX (Claude Code Live ISO), an ephemeral NixOS-based
+    You are running inside CLIX (Claude Code Live ISO), a persistent NixOS-based
     environment designed specifically for AI-assisted development and system tasks.
 
     ## Environment Overview
@@ -270,7 +270,7 @@ let
     ## Important Notes
 
     1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes
-       installed packages (via nix-env), configuration changes, and user files.
+       installed packages (via nix profile), configuration changes, and user files.
     2. **Full Access**: You have passwordless sudo and full system access.
     3. **Pre-approved Commands**: Common shell and development commands are pre-approved in
        ~/.claude/settings.json. You can run git, nix, npm, python, and standard Unix tools
