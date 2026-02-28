@@ -1,24 +1,26 @@
 # CLIX Configuration Examples
 
-These example files show how to configure the CLIX-DATA partition for automatic setup on boot.
+These example files show how to configure the CLIX-PUBLIC partition for automatic setup on boot.
 
 ## Directory Structure
 
-The CLIX-DATA partition (FAT32, labeled `CLIX-DATA`) expects this structure:
+The CLIX-PUBLIC partition (FAT32, labeled `CLIX-PUBLIC`) expects this structure:
 
 ```
-CLIX-DATA/
-├── network/
-│   ├── regdomain             # WiFi regulatory domain (e.g., "US")
-│   └── *.nmconnection        # NetworkManager connection files
-└── README.txt                # (auto-generated on partition)
+CLIX-PUBLIC/
+├── clix/
+│   ├── network/
+│   │   ├── regdomain             # WiFi regulatory domain (e.g., "US")
+│   │   └── *.nmconnection        # NetworkManager connection files
+│   └── claude/                   # Claude credentials (optional)
+└── README.txt                    # (auto-generated on partition)
 ```
 
 ## Network Configuration
 
 ### Regulatory Domain (Required for WiFi)
 
-Create `network/regdomain` containing your 2-letter country code:
+Create `clix/network/regdomain` containing your 2-letter country code:
 
 ```
 US
@@ -28,7 +30,7 @@ Common codes: US, GB, DE, FR, JP, AU, CA. This is required for WiFi to function 
 
 ### WiFi/Ethernet Connections
 
-Place NetworkManager connection files in the `network/` directory. Files must:
+Place NetworkManager connection files in the `clix/network/` directory. Files must:
 - Have the `.nmconnection` extension
 - Be valid NetworkManager keyfile format
 
@@ -67,7 +69,7 @@ On first boot, run `claude` in the terminal and sign in through Firefox. Your cr
 
 ## Writing to the Data Partition
 
-After writing the CLIX image to USB, the CLIX-DATA partition will be the **first** partition (designed for Windows visibility):
+After writing the CLIX image to USB, the CLIX-PUBLIC partition will be the **first** partition (designed for Windows visibility):
 
 **On Linux:**
 ```bash
@@ -78,11 +80,12 @@ lsblk /dev/sdX
 sudo mount /dev/sdX1 /mnt
 
 # Copy your configs
-sudo cp -r network/ /mnt/
-sudo cp -r claude/ /mnt/
+sudo mkdir -p /mnt/clix
+sudo cp -r network/ /mnt/clix/
+sudo cp -r claude/ /mnt/clix/
 
 # Unmount
 sudo umount /mnt
 ```
 
-**On Windows:** The CLIX-DATA partition should appear as a drive letter automatically after writing the image. Just open it in Explorer and copy your files.
+**On Windows:** The CLIX-PUBLIC partition should appear as a drive letter automatically after writing the image. Just open it in Explorer and copy your files.

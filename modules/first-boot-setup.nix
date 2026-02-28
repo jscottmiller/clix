@@ -417,14 +417,14 @@ let
 
       chown -R "$USERNAME:users" "/home/$USERNAME"
 
-      # Import any staged Claude credentials from CLIX-DATA
-      if blkid -L CLIX-DATA >/dev/null 2>&1; then
-        DATA_DEV=$(blkid -L CLIX-DATA)
+      # Import any staged Claude credentials from CLIX-PUBLIC
+      if blkid -L CLIX-PUBLIC >/dev/null 2>&1; then
+        DATA_DEV=$(blkid -L CLIX-PUBLIC)
         TEMP_MOUNT=$(mktemp -d)
         mount -o ro "$DATA_DEV" "$TEMP_MOUNT" || true
 
-        if [ -d "$TEMP_MOUNT/claude" ] && [ -n "$(ls -A "$TEMP_MOUNT/claude" 2>/dev/null)" ]; then
-          cp -rT "$TEMP_MOUNT/claude" "/home/$USERNAME/.claude/"
+        if [ -d "$TEMP_MOUNT/clix/claude" ] && [ -n "$(ls -A "$TEMP_MOUNT/clix/claude" 2>/dev/null)" ]; then
+          cp -rT "$TEMP_MOUNT/clix/claude" "/home/$USERNAME/.claude/"
           chown -R "$USERNAME:users" "/home/$USERNAME/.claude"
           chmod 700 "/home/$USERNAME/.claude"
         fi

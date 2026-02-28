@@ -2,7 +2,7 @@
 # CLIX Image Builder
 # Creates a bootable USB image with:
 #   - ESP (512MB, FAT32) - EFI boot
-#   - CLIX-DATA (2GB, FAT32) - Windows/Mac readable staging area
+#   - CLIX-PUBLIC (2GB, FAT32) - Windows/Mac readable staging area
 #   - CLIX-ROOT (8GB, ext4) - NixOS system (expandable at first boot)
 #
 # IMPORTANT: Run with sudo for correct file ownership:
@@ -95,34 +95,35 @@ create_partition_images() {
     truncate -s "${ESP_SIZE_MB}M" "$WORK_DIR/esp.img"
     mformat -F -v ESP -i "$WORK_DIR/esp.img" ::
 
-    # CLIX-DATA partition image
-    log "Creating CLIX-DATA image (${DATA_SIZE_MB}MB)..."
+    # CLIX-PUBLIC partition image
+    log "Creating CLIX-PUBLIC image (${DATA_SIZE_MB}MB)..."
     truncate -s "${DATA_SIZE_MB}M" "$WORK_DIR/data.img"
-    mformat -F -v CLIX-DATA -i "$WORK_DIR/data.img" ::
+    mformat -F -v CLIX-PUBLIC -i "$WORK_DIR/data.img" ::
 
     # CLIX-ROOT partition - we'll create this after populating a directory
     log "Creating CLIX-ROOT staging directory..."
     mkdir -p "$WORK_DIR/root"
 }
 
-# Populate CLIX-DATA partition using mtools
+# Populate CLIX-PUBLIC partition using mtools
 populate_data_partition() {
-    log "Populating CLIX-DATA partition..."
+    log "Populating CLIX-PUBLIC partition..."
 
-    # Create directories
-    mmd -i "$WORK_DIR/data.img" ::claude ::network
+    # Create clix directory with subdirectories
+    mmd -i "$WORK_DIR/data.img" ::clix
+    mmd -i "$WORK_DIR/data.img" ::clix/claude ::clix/network
 
-    # Create README
+    # Create README at root
     cat > "$WORK_DIR/README.txt" << 'DATAEOF'
-CLIX Data Partition
-====================
+CLIX Public Partition
+=====================
 
 This partition is readable from Windows, Mac, and Linux.
-Place files here to configure your CLIX system.
+Place configuration files in the clix/ folder.
 
 WiFi Configuration
 ------------------
-Create: network/wifi.nmconnection
+Create: clix/network/wifi.nmconnection
 
 Example wifi.nmconnection:
 [connection]
@@ -142,12 +143,12 @@ method=auto
 [ipv6]
 method=auto
 
-Create: network/regdomain
+Create: clix/network/regdomain
 Contents: Your 2-letter country code (e.g., US, GB, DE)
 
 Claude Credentials
 ------------------
-Copy your Claude credentials to: claude/
+Copy your Claude credentials to: clix/claude/
 (Contents of ~/.claude from an existing installation)
 
 DATAEOF
@@ -267,7 +268,7 @@ populate_root() {
 assemble_image() {
     log "Assembling final disk image..."
 
-    # Partition order: CLIX-DATA first (so Windows mounts it by default), then ESP, then ROOT
+    # Partition order: CLIX-PUBLIC first (so Windows mounts it by default), then ESP, then ROOT
     local sector_size=512
     local data_start_mb=1
     local data_end_mb=$((data_start_mb + DATA_SIZE_MB))
@@ -282,13 +283,13 @@ assemble_image() {
     # Create GPT partition table
     log "Creating partition table..."
     parted -s "${OUTPUT_DIR}/${IMAGE_NAME}" mklabel gpt
-    parted -s "${OUTPUT_DIR}/${IMAGE_NAME}" mkpart CLIX-DATA fat32 "${data_start_mb}MiB" "${data_end_mb}MiB"
+    parted -s "${OUTPUT_DIR}/${IMAGE_NAME}" mkpart CLIX-PUBLIC fat32 "${data_start_mb}MiB" "${data_end_mb}MiB"
     parted -s "${OUTPUT_DIR}/${IMAGE_NAME}" mkpart ESP fat32 "${esp_start_mb}MiB" "${esp_end_mb}MiB"
     parted -s "${OUTPUT_DIR}/${IMAGE_NAME}" set 2 esp on
     parted -s "${OUTPUT_DIR}/${IMAGE_NAME}" mkpart CLIX-ROOT ext4 "${root_start_mb}MiB" "${root_end_mb}MiB"
 
     log "Writing partition images..."
-    # Write CLIX-DATA (partition 1)
+    # Write CLIX-PUBLIC (partition 1)
     dd if="$WORK_DIR/data.img" of="${OUTPUT_DIR}/${IMAGE_NAME}" bs=1M seek=$data_start_mb conv=notrunc status=none
 
     # Write ESP (partition 2)

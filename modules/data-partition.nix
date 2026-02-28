@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
-# This module handles the CLIX-DATA partition:
-# - CLIX-DATA is baked into the image (always exists)
+# This module handles the CLIX-PUBLIC partition:
+# - CLIX-PUBLIC is baked into the image (always exists)
 # - On each boot, imports WiFi credentials to NetworkManager
 # - After setup, imports Claude credentials to user home
 
@@ -9,15 +9,15 @@ let
   importScript = pkgs.writeShellScript "clix-import-data" ''
     export PATH="${lib.makeBinPath (with pkgs; [ util-linux coreutils iw networkmanager ])}:$PATH"
     set -e
-    DATA_MOUNT="/mnt/clix-data"
+    DATA_MOUNT="/mnt/clix-public"
 
-    echo "CLIX: Looking for data partition..."
+    echo "CLIX: Looking for public partition..."
 
-    # Find CLIX-DATA partition by label
-    DATA_DEV=$(blkid -L CLIX-DATA 2>/dev/null || true)
+    # Find CLIX-PUBLIC partition by label
+    DATA_DEV=$(blkid -L CLIX-PUBLIC 2>/dev/null || true)
 
     if [ -z "$DATA_DEV" ]; then
-      echo "CLIX: CLIX-DATA partition not found"
+      echo "CLIX: CLIX-PUBLIC partition not found"
       exit 0
     fi
 
@@ -37,8 +37,8 @@ let
     fi
 
     # Set wireless regulatory domain (must happen before NetworkManager)
-    if [ -f "$DATA_MOUNT/network/regdomain" ]; then
-      REGDOMAIN=$(cat "$DATA_MOUNT/network/regdomain" | tr -d '[:space:]')
+    if [ -f "$DATA_MOUNT/clix/network/regdomain" ]; then
+      REGDOMAIN=$(cat "$DATA_MOUNT/clix/network/regdomain" | tr -d '[:space:]')
       if [ -n "$REGDOMAIN" ]; then
         echo "CLIX: Setting wireless regulatory domain to $REGDOMAIN"
         iw reg set "$REGDOMAIN" || echo "CLIX: Warning - failed to set regdomain"
@@ -46,10 +46,10 @@ let
     fi
 
     # Import NetworkManager connections
-    if [ -d "$DATA_MOUNT/network" ]; then
+    if [ -d "$DATA_MOUNT/clix/network" ]; then
       echo "CLIX: Checking for network configurations..."
       mkdir -p /etc/NetworkManager/system-connections
-      for conn in "$DATA_MOUNT/network"/*.nmconnection; do
+      for conn in "$DATA_MOUNT/clix/network"/*.nmconnection; do
         if [ -f "$conn" ]; then
           name=$(basename "$conn")
           echo "CLIX: Importing network config: $name"
@@ -66,10 +66,10 @@ let
       USERNAME=$(cat /etc/clix/user)
       USER_HOME="/home/$USERNAME"
 
-      if [ -d "$DATA_MOUNT/claude" ] && [ -n "$(ls -A "$DATA_MOUNT/claude" 2>/dev/null)" ]; then
+      if [ -d "$DATA_MOUNT/clix/claude" ] && [ -n "$(ls -A "$DATA_MOUNT/clix/claude" 2>/dev/null)" ]; then
         echo "CLIX: Importing Claude credentials for $USERNAME..."
         mkdir -p "$USER_HOME/.claude"
-        cp -rT "$DATA_MOUNT/claude" "$USER_HOME/.claude/"
+        cp -rT "$DATA_MOUNT/clix/claude" "$USER_HOME/.claude/"
         chown -R "$USERNAME:users" "$USER_HOME/.claude"
         chmod 700 "$USER_HOME/.claude"
         find "$USER_HOME/.claude" -type f -exec chmod 600 {} \;

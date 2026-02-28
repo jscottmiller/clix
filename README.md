@@ -79,13 +79,13 @@ CLIX_MEMORY=8G CLIX_CPUS=4 ./scripts/test-vm.sh
 
 ## Pre-configuring WiFi and Claude Credentials
 
-After the first-boot wizard runs, your USB will have a `CLIX-DATA` partition (FAT32) that you can mount on any computer (Windows, Mac, Linux) to add configuration.
+After the first-boot wizard runs, your USB will have a `CLIX-PUBLIC` partition (FAT32) that you can mount on any computer (Windows, Mac, Linux) to add configuration.
 
-Mount the `CLIX-DATA` partition and add:
+Mount the `CLIX-PUBLIC` partition and add:
 
 ### WiFi Regulatory Domain (Required)
 
-Create `network/regdomain` containing your 2-letter country code:
+Create `clix/network/regdomain` containing your 2-letter country code:
 
 ```
 US
@@ -95,7 +95,7 @@ This is required for WiFi to work. Common codes: US, GB, DE, FR, JP, AU, CA.
 
 ### WiFi Configuration
 
-Create `network/wifi.nmconnection`:
+Create `clix/network/wifi.nmconnection`:
 
 ```ini
 [connection]
@@ -126,7 +126,7 @@ On first boot, after the desktop loads, you'll see a setup wizard that:
 
 1. **Detects free space**: Shows available space on your USB drive
 2. **Partition options**:
-   - **Recommended**: 4GB CLIX-DATA + rest for CLIX-HOME (encrypted)
+   - **Recommended**: 4GB CLIX-PUBLIC + rest for CLIX-HOME (encrypted)
    - **Custom**: Choose sizes and encryption preference
 3. **Password setup**: If encrypting, enter a strong password (8+ characters)
 4. **Partition creation**: Creates and formats partitions
@@ -196,7 +196,7 @@ clix/
 │   ├── sway.nix              # Sway + greetd auto-login
 │   ├── claude-code.nix       # Claude Code + welcome script
 │   ├── live-system.nix       # Live rebuild support
-│   ├── data-partition.nix    # CLIX-DATA partition import
+│   ├── data-partition.nix    # CLIX-PUBLIC partition import
 │   ├── encrypted-home.nix    # LUKS encryption for /home
 │   └── first-boot-setup.nix  # First-boot encryption wizard
 ├── config/
@@ -249,7 +249,7 @@ The CLIX disk image ships with two partitions. The first-boot wizard creates two
 |---|------|------|---------|
 | 1 | ESP | FAT32 | EFI boot partition |
 | 2 | nixos | ext4 | System root, /nix/store |
-| 3 | CLIX-DATA | FAT32 | Config staging (Windows-visible) |
+| 3 | CLIX-PUBLIC | FAT32 | Config staging (Windows-visible) |
 | 4 | CLIX-HOME | ext4 or LUKS | User home (optionally encrypted) |
 
 Partition sizes are chosen during first-boot setup based on available USB space.

@@ -8,7 +8,7 @@ Transform CLIX from "create partitions at first boot" to "expand and configure a
 
 **Image (baked in at build time):**
 ```
-[ ESP ] [ CLIX-DATA (FAT32) ] [ NixOS root ]
+[ ESP ] [ CLIX-PUBLIC (FAT32) ] [ NixOS root ]
   512MB      512MB               ~8GB
 ```
 
@@ -32,7 +32,7 @@ Transform CLIX from "create partitions at first boot" to "expand and configure a
 1. Builds NixOS system closure
 2. Creates GPT disk image with:
    - **ESP** (~512MB, FAT32, EFI boot)
-   - **CLIX-DATA** (~512MB, FAT32, labeled, pre-populated with README + directory structure)
+   - **CLIX-PUBLIC** (~512MB, FAT32, labeled, pre-populated with README + directory structure)
    - **NixOS root** (~8GB, ext4, labeled CLIX-ROOT)
 3. Installs bootloader and system
 
@@ -108,7 +108,7 @@ Transform CLIX from "create partitions at first boot" to "expand and configure a
 ## Phase 6: Cleanup & Polish
 
 - Remove old wizard logic
-- Update CLIX-DATA import script (partition now always exists)
+- Update CLIX-PUBLIC import script (partition now always exists)
 - Add `clix-reset` script for factory reset
 - Testing
 
