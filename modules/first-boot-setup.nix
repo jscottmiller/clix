@@ -566,12 +566,27 @@ let
           exit 1
         fi
 
-        # Deploy CLAUDE.md now that home is mounted
+        # Deploy CLAUDE.md and default settings now that home is mounted
         if [ -f /etc/clix/user ]; then
           USERNAME=$(cat /etc/clix/user)
           if [ -d "/home/$USERNAME" ]; then
             mkdir -p "/home/$USERNAME/.claude"
             cp /etc/claude-context/CLAUDE.md "/home/$USERNAME/.claude/CLAUDE.md" 2>/dev/null || true
+
+            # Copy default settings.json from CLIX-PUBLIC if user doesn't have one
+            if [ ! -f "/home/$USERNAME/.claude/settings.json" ]; then
+              if ${pkgs.util-linux}/bin/blkid -L CLIX-PUBLIC >/dev/null 2>&1; then
+                TEMP_MOUNT=$(mktemp -d)
+                if mount -o ro "$(${pkgs.util-linux}/bin/blkid -L CLIX-PUBLIC)" "$TEMP_MOUNT" 2>/dev/null; then
+                  if [ -f "$TEMP_MOUNT/clix/claude/settings.json" ]; then
+                    cp "$TEMP_MOUNT/clix/claude/settings.json" "/home/$USERNAME/.claude/settings.json"
+                  fi
+                  umount "$TEMP_MOUNT" 2>/dev/null || true
+                fi
+                rmdir "$TEMP_MOUNT" 2>/dev/null || true
+              fi
+            fi
+
             chown -R "$USERNAME:users" "/home/$USERNAME/.claude" 2>/dev/null || true
           fi
         fi

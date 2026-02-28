@@ -6,15 +6,15 @@ A bootable NixOS USB that boots into a minimal Sway desktop running Claude Code.
 
 ---
 
-> **WARNING: CLIX runs Claude Code with `--dangerously-skip-permissions`**
+> **Note: CLIX comes with permissive Claude Code settings**
 >
-> This means Claude can execute ANY command without asking for confirmation - including installing software, modifying files, running scripts, and accessing the network. This is intentional for the "prompt your desktop into existence" experience, but you should understand the implications:
+> A default `settings.json` pre-approves common development commands (git, nix, npm, python, standard Unix tools) so Claude can work efficiently without constant confirmation prompts. You should understand the implications:
 >
 > - **Claude has full system access** with passwordless sudo
-> - **No confirmation prompts** for file edits, bash commands, or other actions
-> - **Only use on isolated systems** - CLIX is designed for dedicated USB drives
+> - **Many commands pre-approved** - edit `~/.claude/settings.json` to customize
+> - **Designed for dedicated USB drives** - CLIX is an isolated development environment
 >
-> Do not use CLIX for sensitive work or on systems with access to sensitive resources.
+> Edit `clix/claude/settings.json` on the CLIX-PUBLIC partition to customize permissions before first boot.
 
 ---
 

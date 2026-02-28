@@ -113,6 +113,115 @@ populate_data_partition() {
     mmd -i "$WORK_DIR/data.img" ::clix
     mmd -i "$WORK_DIR/data.img" ::clix/claude ::clix/network
 
+    # Create default Claude settings (permissive for CLIX environment)
+    cat > "$WORK_DIR/settings.json" << 'SETTINGSEOF'
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npm test *)",
+      "Bash(nix-shell *)",
+      "Bash(nix search *)",
+      "Bash(nix build *)",
+      "Bash(nix run *)",
+      "Bash(nix-env *)",
+      "Bash(nixos-rebuild *)",
+      "Bash(git *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(cargo *)",
+      "Bash(go *)",
+      "Bash(make *)",
+      "Bash(cmake *)",
+      "Bash(gcc *)",
+      "Bash(g++ *)",
+      "Bash(clang *)",
+      "Bash(rustc *)",
+      "Bash(node *)",
+      "Bash(deno *)",
+      "Bash(bun *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(fd *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(less *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(awk *)",
+      "Bash(sed *)",
+      "Bash(jq *)",
+      "Bash(tree *)",
+      "Bash(file *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(rm *)",
+      "Bash(touch *)",
+      "Bash(chmod *)",
+      "Bash(chown *)",
+      "Bash(tar *)",
+      "Bash(zip *)",
+      "Bash(unzip *)",
+      "Bash(gzip *)",
+      "Bash(gunzip *)",
+      "Bash(diff *)",
+      "Bash(patch *)",
+      "Bash(date *)",
+      "Bash(env *)",
+      "Bash(echo *)",
+      "Bash(printf *)",
+      "Bash(test *)",
+      "Bash(systemctl status *)",
+      "Bash(journalctl *)",
+      "Bash(lsblk *)",
+      "Bash(df *)",
+      "Bash(du *)",
+      "Bash(free *)",
+      "Bash(ps *)",
+      "Bash(top *)",
+      "Bash(htop *)",
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(pgrep *)",
+      "Bash(nmcli *)",
+      "Bash(ip *)",
+      "Bash(ss *)",
+      "Bash(ping *)",
+      "Bash(host *)",
+      "Bash(dig *)",
+      "Bash(grim *)",
+      "Bash(swaymsg *)",
+      "Bash(wlrctl *)",
+      "Bash(ydotool *)",
+      "Bash(wtype *)",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "TodoRead",
+      "TodoWrite"
+    ],
+    "deny": []
+  }
+}
+SETTINGSEOF
+
+    mcopy -i "$WORK_DIR/data.img" "$WORK_DIR/settings.json" ::clix/claude/settings.json
+    rm "$WORK_DIR/settings.json"
+
     # Create README at root
     cat > "$WORK_DIR/README.txt" << 'DATAEOF'
 CLIX Public Partition
@@ -146,10 +255,11 @@ method=auto
 Create: clix/network/regdomain
 Contents: Your 2-letter country code (e.g., US, GB, DE)
 
-Claude Credentials
-------------------
-Copy your Claude credentials to: clix/claude/
-(Contents of ~/.claude from an existing installation)
+Claude Credentials & Settings
+-----------------------------
+The clix/claude/ folder contains:
+- settings.json: Default permissions (edit to customize)
+- Copy credentials.json here from an existing installation
 
 DATAEOF
 

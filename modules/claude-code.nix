@@ -237,8 +237,9 @@ let
     1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes
        installed packages (via nix-env), configuration changes, and user files.
     2. **Full Access**: You have passwordless sudo and full system access.
-    3. **No Confirmation Needed**: You are running with --dangerously-skip-permissions.
-       Take direct action without asking for permission on routine operations.
+    3. **Pre-approved Commands**: Common shell and development commands are pre-approved in
+       ~/.claude/settings.json. You can run git, nix, npm, python, and standard Unix tools
+       without confirmation. Edit settings.json to customize permissions.
     4. **Visual Context**: Use screenshots liberally to understand the desktop state.
     5. **UI Automation**: You can click, type, and control windows. Use screenshot → analyze → act loops.
 
@@ -301,8 +302,9 @@ EOF
     fi
 
     # Run Claude in a loop - restarts if it exits or is closed
+    # Permissions are configured via ~/.claude/settings.json
     while true; do
-      claude --dangerously-skip-permissions
+      claude
       echo ""
       echo "Claude exited. Restarting in 2 seconds... (Ctrl+C to stop)"
       sleep 2
