@@ -166,6 +166,15 @@ let
     - `nmcli device wifi connect <SSID> password <pass>` - connect to WiFi
     - `nmtui` - text UI for network configuration
 
+    ### Public Partition
+    The CLIX-PUBLIC partition is mounted at `/mnt/public`. This FAT32 partition is:
+    - **Readable from Windows/Mac** - mount the USB to access files
+    - **Shared storage** - place files here to access from other computers
+    - **WiFi config staging** - add `.nmconnection` files to `clix/network/`
+    - **NOT encrypted** - don't store sensitive data here
+
+    Use for transferring files, scripts, or data between CLIX and other systems.
+
     ### Installing to Local Disk
     CLIX can be installed to an internal drive. Tools available:
     - `parted` / `sgdisk` - partition the target disk

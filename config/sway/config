@@ -195,7 +195,8 @@ bindsym Print exec grim - | wl-copy
 bindsym $mod+Print exec grim -g "$(slurp)" - | wl-copy
 
 # Toggle on-screen keyboard (Super+Escape)
-bindsym $mod+Escape exec pkill -SIGUSR1 wvkbd-mobintl
+# SIGUSR1=hide, SIGUSR2=show, SIGRTMIN=toggle
+bindsym $mod+Escape exec pkill -SIGRTMIN wvkbd-mobintl
 
 # ─────────────────────────────────────────
 # Autostart

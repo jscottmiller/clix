@@ -38,8 +38,12 @@ docker run --rm \
         cp -r /build /tmp/clix
         cd /tmp/clix
 
+        # Initialize git repo (required for flake)
+        git init
+        git add -A
+
         # Build the system
-        nix build .#nixosConfigurations.clix-live.config.system.build.toplevel --out-link result/system
+        nix build .#nixosConfigurations.clix.config.system.build.toplevel --out-link result/system
 
         echo "=== Assembling image ==="
         ./scripts/build-image.sh

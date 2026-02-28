@@ -2,39 +2,30 @@
 
 # This module handles the CLIX-PUBLIC partition:
 # - CLIX-PUBLIC is baked into the image (always exists)
+# - Mounted persistently at /mnt/public
 # - On each boot, imports WiFi credentials to NetworkManager
-# - After setup, imports Claude credentials to user home
+# - Claude credentials are handled separately in first-boot-setup.nix
+#   (after encrypted home is unlocked)
 
 let
   importScript = pkgs.writeShellScript "clix-import-data" ''
     export PATH="${lib.makeBinPath (with pkgs; [ util-linux coreutils iw networkmanager ])}:$PATH"
     set -e
-    DATA_MOUNT="/mnt/clix-public"
+    DATA_MOUNT="/mnt/public"
 
     echo "CLIX: Looking for public partition..."
 
-    # Find CLIX-PUBLIC partition by label
-    DATA_DEV=$(blkid -L CLIX-PUBLIC 2>/dev/null || true)
-
-    if [ -z "$DATA_DEV" ]; then
-      echo "CLIX: CLIX-PUBLIC partition not found"
-      exit 0
+    # Wait for mount (handled by systemd, but may take a moment)
+    if ! mountpoint -q "$DATA_MOUNT" 2>/dev/null; then
+      echo "CLIX: Waiting for CLIX-PUBLIC mount..."
+      sleep 2
+      if ! mountpoint -q "$DATA_MOUNT" 2>/dev/null; then
+        echo "CLIX: CLIX-PUBLIC not mounted at $DATA_MOUNT"
+        exit 0
+      fi
     fi
 
-    if [ ! -b "$DATA_DEV" ]; then
-      echo "CLIX: Data partition $DATA_DEV not a block device"
-      exit 0
-    fi
-
-    echo "CLIX: Found data partition at $DATA_DEV"
-
-    # Mount the data partition (read-only)
-    mkdir -p "$DATA_MOUNT"
-    if ! mount -o ro "$DATA_DEV" "$DATA_MOUNT"; then
-      echo "CLIX: Failed to mount data partition"
-      rmdir "$DATA_MOUNT" 2>/dev/null || true
-      exit 0
-    fi
+    echo "CLIX: CLIX-PUBLIC mounted at $DATA_MOUNT"
 
     # Set wireless regulatory domain (must happen before NetworkManager)
     if [ -f "$DATA_MOUNT/clix/network/regdomain" ]; then
@@ -61,35 +52,32 @@ let
       nmcli connection reload 2>/dev/null || true
     fi
 
-    # Import Claude credentials if user is set up
-    if [ -f /etc/clix/user ] && [ -f /etc/clix/.setup-complete ]; then
-      USERNAME=$(cat /etc/clix/user)
-      USER_HOME="/home/$USERNAME"
-
-      if [ -d "$DATA_MOUNT/clix/claude" ] && [ -n "$(ls -A "$DATA_MOUNT/clix/claude" 2>/dev/null)" ]; then
-        echo "CLIX: Importing Claude credentials for $USERNAME..."
-        mkdir -p "$USER_HOME/.claude"
-        cp -rT "$DATA_MOUNT/clix/claude" "$USER_HOME/.claude/"
-        chown -R "$USERNAME:users" "$USER_HOME/.claude"
-        chmod 700 "$USER_HOME/.claude"
-        find "$USER_HOME/.claude" -type f -exec chmod 600 {} \;
-      fi
-    fi
-
-    # Unmount
-    umount "$DATA_MOUNT"
-    rmdir "$DATA_MOUNT"
+    # NOTE: Claude credentials are imported by autostartScript in first-boot-setup.nix
+    # after the encrypted home partition is unlocked.
 
     echo "CLIX: Data import complete"
   '';
 in
 {
+  # Mount CLIX-PUBLIC persistently at /mnt/public
+  fileSystems."/mnt/public" = {
+    device = "/dev/disk/by-label/CLIX-PUBLIC";
+    fsType = "vfat";
+    options = [
+      "nofail"           # Don't fail boot if not present
+      "x-systemd.device-timeout=5"  # Don't wait too long
+      "uid=1000"         # Owner is first user (clix)
+      "gid=100"          # Group is users
+      "umask=002"        # rwxrwxr-x permissions
+    ];
+  };
+
   # Run import script early in boot
   systemd.services.clix-import-data = {
     description = "Import CLIX data from data partition";
     wantedBy = [ "multi-user.target" ];
     before = [ "network-online.target" "display-manager.service" "NetworkManager.service" ];
-    after = [ "local-fs.target" ];
+    after = [ "local-fs.target" "mnt-public.mount" ];
 
     serviceConfig = {
       Type = "oneshot";

@@ -417,21 +417,8 @@ let
 
       chown -R "$USERNAME:users" "/home/$USERNAME"
 
-      # Import any staged Claude credentials from CLIX-PUBLIC
-      if blkid -L CLIX-PUBLIC >/dev/null 2>&1; then
-        DATA_DEV=$(blkid -L CLIX-PUBLIC)
-        TEMP_MOUNT=$(mktemp -d)
-        mount -o ro "$DATA_DEV" "$TEMP_MOUNT" || true
-
-        if [ -d "$TEMP_MOUNT/clix/claude" ] && [ -n "$(ls -A "$TEMP_MOUNT/clix/claude" 2>/dev/null)" ]; then
-          cp -rT "$TEMP_MOUNT/clix/claude" "/home/$USERNAME/.claude/"
-          chown -R "$USERNAME:users" "/home/$USERNAME/.claude"
-          chmod 700 "/home/$USERNAME/.claude"
-        fi
-
-        umount "$TEMP_MOUNT" || true
-        rmdir "$TEMP_MOUNT" || true
-      fi
+      # NOTE: Claude settings from CLIX-PUBLIC are moved on subsequent boots,
+      # not first boot. See autostartScript below.
 
       echo "95"
       echo "# Finalizing..."
@@ -567,29 +554,54 @@ let
         fi
 
         # Deploy CLAUDE.md and default settings now that home is mounted
+        DEBUG_LOG="/tmp/clix-settings-debug.log"
+        echo "=== CLIX Settings Debug $(date) ===" >> "$DEBUG_LOG"
+
         if [ -f /etc/clix/user ]; then
           USERNAME=$(cat /etc/clix/user)
+          echo "Username: $USERNAME" >> "$DEBUG_LOG"
+
           if [ -d "/home/$USERNAME" ]; then
+            echo "Home dir exists: /home/$USERNAME" >> "$DEBUG_LOG"
             mkdir -p "/home/$USERNAME/.claude"
             cp /etc/claude-context/CLAUDE.md "/home/$USERNAME/.claude/CLAUDE.md" 2>/dev/null || true
 
-            # Copy default settings.json from CLIX-PUBLIC if user doesn't have one
-            if [ ! -f "/home/$USERNAME/.claude/settings.json" ]; then
-              if ${pkgs.util-linux}/bin/blkid -L CLIX-PUBLIC >/dev/null 2>&1; then
-                TEMP_MOUNT=$(mktemp -d)
-                if mount -o ro "$(${pkgs.util-linux}/bin/blkid -L CLIX-PUBLIC)" "$TEMP_MOUNT" 2>/dev/null; then
-                  if [ -f "$TEMP_MOUNT/clix/claude/settings.json" ]; then
-                    cp "$TEMP_MOUNT/clix/claude/settings.json" "/home/$USERNAME/.claude/settings.json"
+            # Move default settings.json from CLIX-PUBLIC if user doesn't have one
+            # Move default settings.json from CLIX-PUBLIC if user doesn't have one
+            echo "Checking for existing settings.json..." >> "$DEBUG_LOG"
+            if [ -f "/home/$USERNAME/.claude/settings.json" ]; then
+              echo "SKIP: settings.json already exists at /home/$USERNAME/.claude/settings.json" >> "$DEBUG_LOG"
+            else
+              echo "No settings.json in home, checking /mnt/public..." >> "$DEBUG_LOG"
+              if mountpoint -q /mnt/public 2>/dev/null; then
+                echo "CLIX-PUBLIC mounted at /mnt/public" >> "$DEBUG_LOG"
+                echo "Contents of /mnt/public/clix/claude/:" >> "$DEBUG_LOG"
+                ls -la /mnt/public/clix/claude/ >> "$DEBUG_LOG" 2>&1
+                if [ -f "/mnt/public/clix/claude/settings.json" ]; then
+                  echo "Found settings.json on CLIX-PUBLIC, moving..." >> "$DEBUG_LOG"
+                  if mv /mnt/public/clix/claude/settings.json "/home/$USERNAME/.claude/settings.json" 2>>"$DEBUG_LOG"; then
+                    echo "Move SUCCESS" >> "$DEBUG_LOG"
+                  else
+                    echo "Move FAILED" >> "$DEBUG_LOG"
                   fi
-                  umount "$TEMP_MOUNT" 2>/dev/null || true
+                else
+                  echo "No settings.json found at /mnt/public/clix/claude/settings.json" >> "$DEBUG_LOG"
                 fi
-                rmdir "$TEMP_MOUNT" 2>/dev/null || true
+              else
+                echo "CLIX-PUBLIC not mounted at /mnt/public" >> "$DEBUG_LOG"
               fi
             fi
 
             chown -R "$USERNAME:users" "/home/$USERNAME/.claude" 2>/dev/null || true
+            echo "Final ~/.claude contents:" >> "$DEBUG_LOG"
+            ls -la "/home/$USERNAME/.claude/" >> "$DEBUG_LOG" 2>&1
+          else
+            echo "Home dir does NOT exist: /home/$USERNAME" >> "$DEBUG_LOG"
           fi
+        else
+          echo "No /etc/clix/user file found" >> "$DEBUG_LOG"
         fi
+        echo "=== End Debug ===" >> "$DEBUG_LOG"
       fi
 
       # Start Claude terminal

@@ -49,11 +49,21 @@ Nix installs to `/nix` and doesn't touch your system packages. To uninstall late
 
 ### Build the Disk Image
 
+**Using Docker (recommended):**
+
+```bash
+./scripts/docker-build.sh
+```
+
+This builds the image in a Docker container - no Nix installation or root access required on the host. The build uses a `clix-nix-cache` volume to cache Nix store between builds.
+
+**Using Nix directly:**
+
 ```bash
 sudo ./scripts/build-image.sh
 ```
 
-> **Note:** The build script must run as root to ensure correct file ownership in the image. Without root, NetworkManager plugins will have wrong ownership and WiFi won't work.
+> **Note:** The direct build script must run as root to ensure correct file ownership in the image.
 
 The disk image will be at `result/clix.img`.
 
@@ -204,6 +214,7 @@ clix/
 │   └── waybar/               # Status bar config
 └── scripts/
     ├── build-image.sh        # Build disk image (or ISO with --iso)
+    ├── docker-build.sh       # Build using Docker (no root needed)
     ├── test-vm.sh            # Test in QEMU
     └── write-usb.sh          # Write to USB drive
 ```

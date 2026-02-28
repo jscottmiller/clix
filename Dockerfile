@@ -15,7 +15,7 @@ FROM nixos/nix:latest
 RUN mkdir -p /etc/nix && \
     echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 
-# Install build dependencies
+# Install build dependencies (git-minimal already included in base image)
 RUN nix-env -iA \
     nixpkgs.parted \
     nixpkgs.mtools \
@@ -29,8 +29,10 @@ WORKDIR /build
 
 # Default command: build the image
 CMD ["bash", "-c", "\
+    echo '=== Initializing git (required for flake) ===' && \
+    git init && git add -A && \
     echo '=== Building NixOS system ===' && \
-    nix build .#nixosConfigurations.clix-live.config.system.build.toplevel --out-link result/system && \
+    nix build .#nixosConfigurations.clix.config.system.build.toplevel --out-link result/system && \
     echo '=== Assembling image ===' && \
     ./scripts/build-image.sh && \
     if [ -d /output ]; then \
