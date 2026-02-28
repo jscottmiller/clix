@@ -118,6 +118,8 @@ populate_data_partition() {
 {
   "permissions": {
     "allow": [
+      "Read(/etc/nixos/configuration.nix)",
+      "Edit(/etc/nixos/configuration.nix)",
       "Bash(sudo *)",
       "Bash(rebuild)",
       "Bash(edit-config)",
