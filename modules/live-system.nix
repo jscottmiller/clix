@@ -1,52 +1,8 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, self, ... }:
 
 let
-  # Editable configuration template for /etc/nixos
-  editableConfig = pkgs.writeText "configuration.nix" ''
-    # CLIX Live Configuration
-    # Edit this file and run `rebuild` to apply changes.
-    #
-    # This configuration extends the base CLIX system.
-    # Add packages, services, or other NixOS options here.
-
-    { config, pkgs, lib, ... }:
-
-    {
-      # Add your custom packages here
-      environment.systemPackages = with pkgs; [
-        # Example: python3 neovim tmux
-      ];
-
-      # Add custom services or configuration below
-      # services.someService.enable = true;
-
-      # Don't modify this line
-      system.stateVersion = "24.11";
-    }
-  '';
-
-  editableFlake = pkgs.writeText "flake.nix" ''
-    {
-      description = "CLIX Live Configuration";
-
-      inputs = {
-        nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-      };
-
-      outputs = { self, nixpkgs }: {
-        nixosConfigurations.clix = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
-          modules = [
-            # Import the running system's configuration
-            /run/current-system/configuration.nix
-
-            # Your customizations
-            ./configuration.nix
-          ];
-        };
-      };
-    }
-  '';
+  # self is passed from the flake and always points to the flake directory
+  # Works both during initial build (project root) and rebuild (/etc/nixos)
 
   rebuildScript = pkgs.writeShellScriptBin "rebuild" ''
     #!/usr/bin/env bash
@@ -57,12 +13,10 @@ let
 
     if [ ! -f /etc/nixos/flake.nix ]; then
       echo "Error: /etc/nixos/flake.nix not found"
-      echo "Run 'sudo clix-init-config' to initialize"
       exit 1
     fi
 
-    cd /etc/nixos
-    sudo nixos-rebuild switch --flake .#clix
+    sudo nixos-rebuild switch --flake /etc/nixos#clix
 
     echo ""
     echo "Rebuild complete!"
@@ -72,43 +26,12 @@ let
     #!/usr/bin/env bash
     ''${EDITOR:-vim} /etc/nixos/configuration.nix
   '';
-
-  initConfigScript = pkgs.writeShellScriptBin "clix-init-config" ''
-    #!/usr/bin/env bash
-    set -e
-
-    echo "Initializing /etc/nixos configuration..."
-
-    mkdir -p /etc/nixos
-
-    if [ ! -f /etc/nixos/configuration.nix ]; then
-      cp ${editableConfig} /etc/nixos/configuration.nix
-      chmod 644 /etc/nixos/configuration.nix
-      echo "Created /etc/nixos/configuration.nix"
-    else
-      echo "/etc/nixos/configuration.nix already exists, skipping"
-    fi
-
-    if [ ! -f /etc/nixos/flake.nix ]; then
-      cp ${editableFlake} /etc/nixos/flake.nix
-      chmod 644 /etc/nixos/flake.nix
-      echo "Created /etc/nixos/flake.nix"
-    else
-      echo "/etc/nixos/flake.nix already exists, skipping"
-    fi
-
-    echo ""
-    echo "Configuration initialized!"
-    echo "Edit with: edit-config"
-    echo "Apply with: rebuild"
-  '';
 in
 {
   # Add rebuild tools to system packages
   environment.systemPackages = [
     rebuildScript
     editConfigScript
-    initConfigScript
   ];
 
   # Shell aliases
@@ -117,11 +40,107 @@ in
     edit-config = "edit-config";
   };
 
-  # Initialize /etc/nixos on boot
-  system.activationScripts.initNixosConfig = ''
-    # Initialize editable config on first boot
+  # Ship the complete /etc/nixos directory structure
+  # Files are shipped to both their target location AND their source path,
+  # so that rebuilds from /etc/nixos/ can find the sources.
+  environment.etc = {
+    # Flake files - ship to /etc/nixos/ (where they're used)
+    "nixos/flake.nix" = {
+      source = "${self}/config/nixos/flake.nix";
+      mode = "0644";
+    };
+    "nixos/flake.lock" = {
+      source = "${self}/flake.lock";
+      mode = "0644";
+    };
+    "nixos/base-configuration.nix" = {
+      source = "${self}/config/nixos/base-configuration.nix";
+      mode = "0644";
+    };
+
+    # Also ship to source paths so rebuilds from /etc/nixos/ work
+    # (${self} = /etc/nixos/ during rebuild, so sources need to exist there)
+    "nixos/config/nixos/flake.nix" = {
+      source = "${self}/config/nixos/flake.nix";
+      mode = "0644";
+    };
+    "nixos/config/nixos/base-configuration.nix" = {
+      source = "${self}/config/nixos/base-configuration.nix";
+      mode = "0644";
+    };
+
+    # User-editable configuration (only create if doesn't exist)
+    # Handled by activation script below
+
+    # Ship all modules
+    "nixos/modules/base.nix" = {
+      source = "${self}/modules/base.nix";
+      mode = "0644";
+    };
+    "nixos/modules/sway.nix" = {
+      source = "${self}/modules/sway.nix";
+      mode = "0644";
+    };
+    "nixos/modules/claude-code.nix" = {
+      source = "${self}/modules/claude-code.nix";
+      mode = "0644";
+    };
+    "nixos/modules/live-system.nix" = {
+      source = "${self}/modules/live-system.nix";
+      mode = "0644";
+    };
+    "nixos/modules/data-partition.nix" = {
+      source = "${self}/modules/data-partition.nix";
+      mode = "0644";
+    };
+    "nixos/modules/encrypted-home.nix" = {
+      source = "${self}/modules/encrypted-home.nix";
+      mode = "0644";
+    };
+    "nixos/modules/first-boot-setup.nix" = {
+      source = "${self}/modules/first-boot-setup.nix";
+      mode = "0644";
+    };
+
+    # Config files referenced by modules
+    "nixos/config/sway/config" = {
+      source = "${self}/config/sway/config";
+      mode = "0644";
+    };
+    "nixos/config/waybar/config" = {
+      source = "${self}/config/waybar/config";
+      mode = "0644";
+    };
+    "nixos/config/waybar/style.css" = {
+      source = "${self}/config/waybar/style.css";
+      mode = "0644";
+    };
+    "nixos/config/foot/foot.ini" = {
+      source = "${self}/config/foot/foot.ini";
+      mode = "0644";
+    };
+  };
+
+  # Create user configuration.nix on first boot (mutable, not managed by etc)
+  system.activationScripts.initUserConfig = ''
     if [ ! -f /etc/nixos/configuration.nix ]; then
-      ${initConfigScript}/bin/clix-init-config || true
+      cat > /etc/nixos/configuration.nix << 'CONFIGEOF'
+# CLIX User Configuration
+# Edit this file and run `rebuild` to apply changes.
+
+{ config, pkgs, lib, ... }:
+
+{
+  # Add your custom packages here
+  environment.systemPackages = with pkgs; [
+    # example: python3 neovim tmux
+  ];
+
+  # Add custom services or configuration below
+  # services.someService.enable = true;
+}
+CONFIGEOF
+      chmod 644 /etc/nixos/configuration.nix
     fi
   '';
 

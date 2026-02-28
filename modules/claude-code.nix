@@ -141,11 +141,35 @@ let
     nix-shell -p nodejs ripgrep ffmpeg    # Get packages for current shell
     ```
 
-    **Permanent (survives reboot):**
+    **Quick install (survives reboot):**
     ```bash
     nix profile install nixpkgs#obs-studio   # Install a package
     nix profile list                          # List installed packages
     nix profile remove obs-studio             # Remove a package
+    ```
+
+    **Declarative install (the NixOS way):**
+    ```bash
+    # Edit system configuration (requires sudo - use Bash with sudo tee)
+    edit-config
+
+    # Add packages to environment.systemPackages, then:
+    rebuild
+    ```
+
+    **When to use which:**
+    - `nix profile install` - Quick, simple packages (most CLI tools, apps)
+    - `edit-config` + `rebuild` - Packages needing system integration (Steam, Docker, etc.)
+
+    **Special packages requiring system config:**
+    Some packages need `programs.X.enable = true` in configuration.nix:
+    ```nix
+    # Steam (needs FHS sandbox + 32-bit drivers)
+    programs.steam.enable = true;
+    hardware.graphics.enable32Bit = true;
+
+    # Docker
+    virtualisation.docker.enable = true;
     ```
 
     **Search for packages:**
@@ -253,6 +277,13 @@ let
        without confirmation. Edit settings.json to customize permissions.
     4. **Visual Context**: Use screenshots liberally to understand the desktop state.
     5. **UI Automation**: You can click, type, and control windows. Use screenshot → analyze → act loops.
+    6. **Editing System Files**: Files like `/etc/nixos/configuration.nix` are owned by root.
+       Use `sudo tee` via Bash to write them:
+       ```bash
+       echo 'content' | sudo tee /etc/nixos/configuration.nix
+       # Or for appending:
+       echo 'programs.steam.enable = true;' | sudo tee -a /etc/nixos/configuration.nix
+       ```
 
     ## Working Directory
     Default working directory is your home folder. Use /tmp for temporary files.
