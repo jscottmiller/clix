@@ -24,7 +24,7 @@ let
 
   editConfigScript = pkgs.writeShellScriptBin "edit-config" ''
     #!/usr/bin/env bash
-    ''${EDITOR:-vim} /etc/nixos/configuration.nix
+    sudo ''${EDITOR:-vim} /etc/nixos/configuration.nix
   '';
 in
 {
