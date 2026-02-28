@@ -119,6 +119,16 @@ in
       source = "${self}/config/foot/foot.ini";
       mode = "0644";
     };
+
+    # Package installation guides
+    "nixos/docs/packages/README.md" = {
+      source = "${self}/docs/packages/README.md";
+      mode = "0644";
+    };
+    "nixos/docs/packages/steam.md" = {
+      source = "${self}/docs/packages/steam.md";
+      mode = "0644";
+    };
   };
 
   # Create user configuration.nix on first boot (mutable, not managed by etc)

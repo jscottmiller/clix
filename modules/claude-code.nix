@@ -168,14 +168,13 @@ let
     - `edit-config` + `rebuild` - Packages needing system integration (Steam, Docker, etc.)
 
     **Special packages requiring system config:**
-    Some packages need `programs.X.enable = true` in configuration.nix:
-    ```nix
-    # Steam (needs FHS sandbox + 32-bit drivers)
-    programs.steam.enable = true;
-    hardware.graphics.enable32Bit = true;
+    Some packages need `programs.X.enable = true` in configuration.nix.
+    See `/etc/nixos/docs/packages/` for detailed guides (Steam, Docker, etc.).
 
-    # Docker
-    virtualisation.docker.enable = true;
+    Quick examples:
+    ```nix
+    programs.steam.enable = true;       # Gaming (see docs/packages/steam.md)
+    virtualisation.docker.enable = true; # Containers
     ```
 
     **Search for packages:**
