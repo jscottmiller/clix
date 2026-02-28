@@ -37,6 +37,10 @@ input type:touchpad {
     natural_scroll enabled
 }
 
+input type:touch {
+    map_to_output *
+}
+
 # ─────────────────────────────────────────
 # Claude Terminal - Docked Left
 # ─────────────────────────────────────────
@@ -190,6 +194,9 @@ bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 bindsym Print exec grim - | wl-copy
 bindsym $mod+Print exec grim -g "$(slurp)" - | wl-copy
 
+# Toggle on-screen keyboard
+bindsym $mod+Shift+k exec pkill -SIGUSR2 wvkbd-mobintl
+
 # ─────────────────────────────────────────
 # Autostart
 # ─────────────────────────────────────────
@@ -205,6 +212,9 @@ exec /run/current-system/sw/libexec/polkit-gnome-authentication-agent-1
 
 # Network manager applet
 exec nm-applet --indicator
+
+# On-screen keyboard (auto-shows via text-input-v3 protocol)
+exec wvkbd-mobintl --hidden -L 300
 
 # First boot: run setup wizard. After setup: start Claude terminal
 exec /etc/clix-autostart.sh

@@ -166,6 +166,7 @@ EOF
       networkmanagerapplet  # Network tray icon & nm-connection-editor
       polkit_gnome          # Polkit auth agent (needed for nm-applet)
       firefox           # Web browser for OAuth sign-in
+      wvkbd             # On-screen keyboard for tablet mode
     ];
   };
 
