@@ -194,8 +194,8 @@ bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 bindsym Print exec grim - | wl-copy
 bindsym $mod+Print exec grim -g "$(slurp)" - | wl-copy
 
-# Toggle on-screen keyboard
-bindsym $mod+Shift+k exec pkill -SIGUSR2 wvkbd-mobintl
+# Toggle on-screen keyboard (Super+Escape)
+bindsym $mod+Escape exec pkill -SIGUSR2 wvkbd-mobintl
 
 # ─────────────────────────────────────────
 # Autostart

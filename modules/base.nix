@@ -126,6 +126,11 @@
   # Passwordless sudo for wheel group (setup user and future user)
   security.sudo.wheelNeedsPassword = false;
 
+  # Ensure system PATH is available in all interactive shells (including TTY autologin)
+  environment.interactiveShellInit = ''
+    export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:$PATH"
+  '';
+
   # Enable sound with pipewire
   security.rtkit.enable = true;
   services.pipewire = {
