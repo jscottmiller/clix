@@ -141,6 +141,7 @@ in
 }
 CONFIGEOF
       chmod 644 /etc/nixos/configuration.nix
+      chown 1000:users /etc/nixos/configuration.nix
     fi
   '';
 

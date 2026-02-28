@@ -119,6 +119,8 @@ populate_data_partition() {
   "permissions": {
     "allow": [
       "Bash(sudo *)",
+      "Bash(rebuild)",
+      "Bash(edit-config)",
       "Bash(nix *)",
       "Bash(nix-shell *)",
       "Bash(nix-env *)",
