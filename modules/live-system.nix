@@ -172,17 +172,36 @@ CONFIGEOF
     loader.systemd-boot.sortKey = "clix";
     loader.efi.canTouchEfiVariables = false;
 
-    # Debug boot entry - enables systemd debug shell on tty9 (Ctrl+Alt+F9)
-    # Copy from the latest boot entry and add debug_shell option
+    # Debug boot entry - declared here, paths filled in by extraInstallCommands
+    # Enables systemd debug shell on tty9 (Ctrl+Alt+F9)
+    loader.systemd-boot.extraEntries = {
+      "zz-clix-debug.conf" = ''
+        title CLIX (Debug - tty9 shell)
+        linux __KERNEL__
+        initrd __INITRD__
+        options __OPTIONS__ systemd.debug_shell=1
+      '';
+    };
+
+    # Fill in dynamic paths from the generated boot entry
     loader.systemd-boot.extraInstallCommands = ''
-      # Find the latest boot entry (try clix-generation first, then nixos-generation)
-      DEFAULT=$(ls -t /boot/loader/entries/clix-generation-*.conf 2>/dev/null | head -1)
-      [ -z "$DEFAULT" ] && DEFAULT=$(ls -t /boot/loader/entries/nixos-generation-*.conf 2>/dev/null | head -1)
-      if [ -n "$DEFAULT" ] && [ -f "$DEFAULT" ]; then
-        # Create debug entry: change title and add debug_shell to options
-        sed -e 's/^title.*/title CLIX (Debug - tty9 shell)/' \
-            -e '/^options/ { /systemd.debug_shell/! s/$/ systemd.debug_shell=1/ }' \
-            "$DEFAULT" > /boot/loader/entries/zz-clix-debug.conf
+      DEBUG_ENTRY="/boot/loader/entries/zz-clix-debug.conf"
+
+      # Find the latest generation entry (any pattern)
+      LATEST=$(ls -t /boot/loader/entries/*generation*.conf 2>/dev/null | head -1)
+
+      if [ -n "$LATEST" ] && [ -f "$LATEST" ] && [ -f "$DEBUG_ENTRY" ]; then
+        # Extract paths from the generated entry
+        KERNEL=$(grep '^linux' "$LATEST" | awk '{print $2}')
+        INITRD=$(grep '^initrd' "$LATEST" | awk '{print $2}')
+        OPTIONS=$(grep '^options' "$LATEST" | sed 's/^options //')
+
+        # Fill in the placeholders
+        sed -i \
+          -e "s|__KERNEL__|$KERNEL|" \
+          -e "s|__INITRD__|$INITRD|" \
+          -e "s|__OPTIONS__|$OPTIONS|" \
+          "$DEBUG_ENTRY"
       fi
     '';
 
