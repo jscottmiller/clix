@@ -343,7 +343,7 @@ EOF
     echo ""
 
     # Check if already authenticated
-    if [ ! -f "$HOME/.claude/credentials.json" ]; then
+    if [ ! -f "$HOME/.claude/.credentials.json" ]; then
       echo "First time setup: You'll need to authenticate with Claude."
       echo ""
     fi
