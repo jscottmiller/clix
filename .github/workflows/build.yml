@@ -6,6 +6,9 @@ on:
     tags:
       - 'v*'  # Build on version tags
 
+permissions:
+  contents: write  # Required for creating releases
+
 jobs:
   build-x86:
     runs-on: ubuntu-latest
