@@ -118,6 +118,8 @@ populate_data_partition() {
 {
   "permissions": {
     "allow": [
+      "Read(/home/clix)",
+      "Edit(/home/clix)",
       "Read(/etc/nixos/configuration.nix)",
       "Edit(/etc/nixos/configuration.nix)",
       "Bash(sudo *)",
