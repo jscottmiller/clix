@@ -134,13 +134,10 @@ On first boot, run `claude` and sign in through Firefox. Your credentials will b
 
 On first boot, after the desktop loads, you'll see a setup wizard that:
 
-1. **Detects free space**: Shows available space on your USB drive
-2. **Partition options**:
-   - **Recommended**: 4GB CLIX-PUBLIC + rest for CLIX-HOME (encrypted)
-   - **Custom**: Choose sizes and encryption preference
-3. **Password setup**: If encrypting, enter a strong password (8+ characters)
-4. **Partition creation**: Creates and formats partitions
-5. **Done**: System is ready to use
+1. **Creates your user account**: Username and password
+2. **Allocates storage**: Choose how to split remaining USB space between root expansion and encrypted home
+3. **Sets up encryption**: Your home directory is encrypted with your password
+4. **Reboots**: System is ready to use
 
 ### Subsequent Boots
 
@@ -184,17 +181,26 @@ The **Super key** (Windows logo key) is your modifier.
 
 ### Installing Packages
 
-Temporary (current shell only):
+**Temporary (current shell only):**
 ```bash
 nix-shell -p python3 nodejs rustc
 ```
 
-Persistent (survives reboots):
+**Quick install (persistent, survives reboots):**
 ```bash
-edit-config    # Opens /etc/nixos/configuration.nix
-# Add packages to environment.systemPackages
-rebuild        # Applies changes
+nix profile install nixpkgs#obs-studio
+nix profile list      # List installed
+nix profile remove obs-studio
 ```
+
+**Declarative install (for packages needing system integration):**
+```bash
+# Edit /etc/nixos/configuration.nix (you have write permission)
+# Add packages to environment.systemPackages, then:
+rebuild
+```
+
+Some packages like Steam and Docker require system-level configuration. See `docs/packages/` for detailed guides.
 
 ## Project Structure
 
@@ -210,10 +216,14 @@ clix/
 │   ├── encrypted-home.nix    # LUKS encryption for /home
 │   └── first-boot-setup.nix  # First-boot encryption wizard
 ├── config/
+│   ├── nixos/                # Flake shipped to /etc/nixos
 │   ├── sway/config           # Sway keybindings
 │   └── waybar/               # Status bar config
+├── docs/
+│   └── packages/             # Package installation guides (Steam, etc.)
+├── examples/                 # Example WiFi configs
 └── scripts/
-    ├── build-image.sh        # Build disk image (or ISO with --iso)
+    ├── build-image.sh        # Build disk image
     ├── docker-build.sh       # Build using Docker (no root needed)
     ├── test-vm.sh            # Test in QEMU
     └── write-usb.sh          # Write to USB drive
@@ -231,39 +241,35 @@ Edit the modules in `modules/` to customize:
 - `encrypted-home.nix`: LUKS encryption settings
 - `first-boot-setup.nix`: First-boot wizard behavior
 
-## Building ISO Instead
-
-If you prefer an ISO (e.g., for CD/DVD or compatibility):
-
-```bash
-./scripts/build-image.sh --iso
-# or
-nix build .#iso
-```
-
-Note: The ISO doesn't include the data partition feature.
-
 ## Partition Layout
 
-The CLIX disk image ships with two partitions. The first-boot wizard creates two more.
+The CLIX disk image ships with three partitions. The first-boot wizard expands the root and optionally creates an encrypted home.
 
 ### After Writing to USB
 
-| # | Name | Type | Purpose |
-|---|------|------|---------|
-| 1 | ESP | FAT32 | EFI boot partition |
-| 2 | nixos | ext4 | System root, /nix/store |
+| # | Name | Type | Size | Purpose |
+|---|------|------|------|---------|
+| 1 | CLIX-PUBLIC | FAT32 | 2GB | Config staging, Windows-visible |
+| 2 | ESP | FAT32 | 512MB | EFI boot partition |
+| 3 | CLIX-ROOT | ext4 | ~8GB | System root, /nix/store |
 
 ### After First Boot Setup
 
 | # | Name | Type | Purpose |
 |---|------|------|---------|
-| 1 | ESP | FAT32 | EFI boot partition |
-| 2 | nixos | ext4 | System root, /nix/store |
-| 3 | CLIX-PUBLIC | FAT32 | Config staging (Windows-visible) |
-| 4 | CLIX-HOME | ext4 or LUKS | User home (optionally encrypted) |
+| 1 | CLIX-PUBLIC | FAT32 | Config staging (Windows-visible), mounted at /mnt/public |
+| 2 | ESP | FAT32 | EFI boot partition |
+| 3 | CLIX-ROOT | ext4 | System root (expanded to fill available space minus home) |
+| 4 | CLIX-HOME | LUKS+ext4 | Encrypted user home directory |
 
-Partition sizes are chosen during first-boot setup based on available USB space.
+The first-boot wizard lets you choose how to allocate remaining USB space between root expansion and encrypted home.
+
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Adding package installation guides
+- Development setup
+- Release process
 
 ## License
 
