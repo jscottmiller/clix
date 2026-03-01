@@ -1,8 +1,6 @@
 # CLIX - Claude Code Live ISO for NixOS
 
-> *"Fight for the users."*
-
-A bootable NixOS USB that boots into a minimal Sway desktop running Claude Code. Users "prompt their desktop into existence."
+From the human: Hello! CLIX is my attempt to make a minimal Linux live OS. I've been thinking about what an AI first operating system might look like and, lacking a team of developers, I created a small NixOS environment that boots into Claude Code (in a sense replacing the shell) as a way to toy with this idea. If you think this is fun, interesting, buggy, horrible, whatever, please feel free to politely contribute or reach out. The rest of this project was prompted into existance so caveat emptor.
 
 ---
 
