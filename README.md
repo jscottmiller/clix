@@ -4,7 +4,9 @@ From the human: Hello! CLIX is my attempt to make a minimal Linux live OS. I've 
 
 ---
 
-CLIX is a bootable USB system built on NixOS that launches directly into a Sway desktop with Claude Code ready to go. It's fully persistent—installed packages, configuration changes, and your files all survive reboots. The system includes a FAT32 partition (`CLIX-PUBLIC`) that's readable from Windows and macOS, giving you an easy way to transfer files, pre-configure WiFi networks, or stage Claude settings before booting. Your home directory is encrypted with LUKS (you set the password on first boot), keeping your Claude credentials and personal data protected even if the USB is lost. Note that the system partition and CLIX-PUBLIC are *not* encrypted—only your home directory is protected. Claude operates with passwordless sudo and pre-approved permissions for common development tasks—this is intentional for a dedicated AI development environment, but you should use CLIX on its own USB drive rather than alongside sensitive data.
+CLIX is a single-user bootable USB system built on NixOS that launches directly into a Sway desktop with Claude Code ready to go. The system automatically logs in as `clix`, with `/home/clix` mounted from a LUKS-encrypted volume—the idea is that you carry your encrypted data on a flash drive or other portable storage. Everything is persistent: installed packages, configuration changes, and your files all survive reboots.
+
+The system includes a FAT32 partition (`CLIX-PUBLIC`) that's readable from Windows and macOS, giving you an easy way to transfer files, pre-configure WiFi networks, or stage Claude settings before booting. Note that the system partition and CLIX-PUBLIC are *not* encrypted—only your home directory is protected. Claude operates with passwordless sudo and pre-approved permissions for common development tasks—this is intentional for a dedicated AI development environment, but you should use CLIX on its own USB drive rather than alongside sensitive data.
 
 ---
 
