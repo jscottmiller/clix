@@ -160,11 +160,29 @@ CONFIGEOF
     fi
   '';
 
+  # System label for boot menu
+  system.nixos.label = "CLIX";
+
   # Boot settings
   boot = {
     # systemd-boot for UEFI
     loader.systemd-boot.enable = true;
+    loader.systemd-boot.configurationLimit = 10;
+    loader.systemd-boot.sortKey = "clix";
     loader.efi.canTouchEfiVariables = false;
+
+    # Debug boot entry - enables systemd debug shell on tty9 (Ctrl+Alt+F9)
+    # Copy from the default NixOS entry and add debug_shell option
+    loader.systemd-boot.extraInstallCommands = ''
+      # Find the default NixOS entry and create a debug variant
+      DEFAULT=$(ls -t /boot/loader/entries/nixos-generation-*.conf 2>/dev/null | head -1)
+      if [ -n "$DEFAULT" ] && [ -f "$DEFAULT" ]; then
+        # Create debug entry: change title and add debug_shell to options
+        sed -e 's/^title.*/title CLIX (Debug - tty9 shell)/' \
+            -e '/^options/ { /systemd.debug_shell/! s/$/ systemd.debug_shell=1/ }' \
+            "$DEFAULT" > /boot/loader/entries/zz-clix-debug.conf
+      fi
+    '';
 
     # RAM-based /tmp
     tmp.useTmpfs = true;
