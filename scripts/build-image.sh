@@ -5,8 +5,7 @@
 #   - CLIX-PUBLIC (2GB, FAT32) - Windows/Mac readable staging area
 #   - CLIX-ROOT (8GB, ext4) - NixOS system (expandable at first boot)
 #
-# IMPORTANT: Run with sudo for correct file ownership:
-#   sudo ./scripts/build-image.sh
+# Usage: ./scripts/docker-build.sh (runs this script in a container)
 
 set -euo pipefail
 

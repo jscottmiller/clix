@@ -26,8 +26,7 @@
 
     packages.${system} = {
       # System closure - used by scripts/build-image.sh
-      # Build with: nix build .#system
-      # Then run: sudo ./scripts/build-image.sh
+      # Build with: ./scripts/docker-build.sh
       system = self.nixosConfigurations.clix.config.system.build.toplevel;
 
       default = self.packages.${system}.system;

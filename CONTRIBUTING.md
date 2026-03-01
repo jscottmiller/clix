@@ -43,20 +43,9 @@ Open an issue describing the feature and why it would be useful for CLIX users.
 
 ### Prerequisites
 
-**Docker (recommended):**
 ```bash
 # No additional setup needed - builds run in container
 ./scripts/docker-build.sh
-```
-
-**Native Nix:**
-```bash
-# Install Nix with flakes enabled
-mkdir -p ~/.config/nix
-echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
-
-# Build (requires root for correct file ownership)
-sudo ./scripts/build-image.sh
 ```
 
 ### Testing

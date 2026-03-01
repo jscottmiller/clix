@@ -53,21 +53,11 @@ Nix installs to `/nix` and doesn't touch your system packages. To uninstall late
 
 ### Build the Disk Image
 
-**Using Docker (recommended):**
-
 ```bash
 ./scripts/docker-build.sh
 ```
 
-This builds the image in a Docker container - no Nix installation or root access required on the host. The build uses a `clix-nix-cache` volume to cache Nix store between builds.
-
-**Using Nix directly:**
-
-```bash
-sudo ./scripts/build-image.sh
-```
-
-> **Note:** The direct build script must run as root to ensure correct file ownership in the image.
+This builds the image in a Docker container - no Nix installation or root access required on the host. The build uses a `clix-nix-cache` volume to cache the Nix store between builds.
 
 The disk image will be at `result/clix.img`.
 
