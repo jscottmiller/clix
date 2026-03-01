@@ -160,8 +160,9 @@ CONFIGEOF
     fi
   '';
 
-  # System label for boot menu
-  system.nixos.label = "CLIX";
+  # System branding for boot menu
+  system.nixos.distroName = "CLIX";  # Changes "NixOS" to "CLIX" in boot entries
+  system.nixos.label = "CLIX";       # Additional label in boot entry description
 
   # Boot settings
   boot = {
@@ -172,10 +173,11 @@ CONFIGEOF
     loader.efi.canTouchEfiVariables = false;
 
     # Debug boot entry - enables systemd debug shell on tty9 (Ctrl+Alt+F9)
-    # Copy from the default NixOS entry and add debug_shell option
+    # Copy from the latest boot entry and add debug_shell option
     loader.systemd-boot.extraInstallCommands = ''
-      # Find the default NixOS entry and create a debug variant
-      DEFAULT=$(ls -t /boot/loader/entries/nixos-generation-*.conf 2>/dev/null | head -1)
+      # Find the latest boot entry (try clix-generation first, then nixos-generation)
+      DEFAULT=$(ls -t /boot/loader/entries/clix-generation-*.conf 2>/dev/null | head -1)
+      [ -z "$DEFAULT" ] && DEFAULT=$(ls -t /boot/loader/entries/nixos-generation-*.conf 2>/dev/null | head -1)
       if [ -n "$DEFAULT" ] && [ -f "$DEFAULT" ]; then
         # Create debug entry: change title and add debug_shell to options
         sed -e 's/^title.*/title CLIX (Debug - tty9 shell)/' \
