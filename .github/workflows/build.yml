@@ -43,10 +43,22 @@ jobs:
           retention-days: 7
           compression-level: 0  # Already compressed
 
-      # For tagged releases, also create a GitHub release
+      # For tagged releases, create a GitHub release (without asset - too large)
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: clix-x86_64.img.zip
           generate_release_notes: true
+          body: |
+            ## Download
+
+            The disk image is too large for GitHub release assets (3GB+).
+
+            **[Download clix-x86_64.img.zip from Actions artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})**
+
+            Or build it yourself:
+            ```bash
+            git clone https://github.com/${{ github.repository }}.git
+            cd clix
+            ./scripts/docker-build.sh
+            ```
