@@ -28,20 +28,17 @@ jobs:
       - name: Build image with Docker
         run: ./scripts/docker-build.sh
 
-      - name: Compress image
+      - name: Prepare artifact
         run: |
-          zip clix-x86_64.img.zip result/clix.img
-          ls -lh clix-x86_64.img.zip
-          # Show uncompressed size for reference
-          ls -lh result/clix.img
+          mv result/clix.img clix-x86_64.img
+          ls -lh clix-x86_64.img
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: clix-x86_64
-          path: clix-x86_64.img.zip
+          path: clix-x86_64.img
           retention-days: 7
-          compression-level: 0  # Already compressed
 
       # For tagged releases, create a GitHub release (without asset - too large)
       - name: Create Release
