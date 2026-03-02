@@ -368,15 +368,14 @@ EOF
 
     # Debug boot entry - enables systemd debug shell on tty9 (Ctrl+Alt+F9)
     # Debug entry - same filename as NixOS extraEntries so rebuilds update it
-    cat > "$WORK_DIR/zz-clix-debug.conf" << EOF
+    cat > "$WORK_DIR/clix-debug.conf" << EOF
 title CLIX (Debug - tty9 shell)
-sort-key zz-clix
 linux /EFI/nixos/kernel
 initrd /EFI/nixos/initrd
 options init=${system_path}/init root=LABEL=CLIX-ROOT rootwait rw systemd.debug_shell=1
 EOF
-    mcopy -i "$WORK_DIR/esp.img" "$WORK_DIR/zz-clix-debug.conf" ::loader/entries/zz-clix-debug.conf
-    rm "$WORK_DIR/zz-clix-debug.conf"
+    mcopy -i "$WORK_DIR/esp.img" "$WORK_DIR/clix-debug.conf" ::loader/entries/clix-debug.conf
+    rm "$WORK_DIR/clix-debug.conf"
 }
 
 # Populate root filesystem

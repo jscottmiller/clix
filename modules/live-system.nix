@@ -175,9 +175,8 @@ CONFIGEOF
     # Debug boot entry - declared here, paths filled in by extraInstallCommands
     # Enables systemd debug shell on tty9 (Ctrl+Alt+F9)
     loader.systemd-boot.extraEntries = {
-      "zz-clix-debug.conf" = ''
+      "clix-debug.conf" = ''
         title CLIX (Debug - tty9 shell)
-        sort-key zz-clix
         linux __KERNEL__
         initrd __INITRD__
         options __OPTIONS__ systemd.debug_shell=1
@@ -186,7 +185,7 @@ CONFIGEOF
 
     # Fill in dynamic paths from the generated boot entry
     loader.systemd-boot.extraInstallCommands = ''
-      DEBUG_ENTRY="/boot/loader/entries/zz-clix-debug.conf"
+      DEBUG_ENTRY="/boot/loader/entries/clix-debug.conf"
 
       # Find the latest generation entry (any pattern)
       LATEST=$(ls -t /boot/loader/entries/*generation*.conf 2>/dev/null | head -1)
