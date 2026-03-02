@@ -370,6 +370,7 @@ EOF
     # Debug entry - same filename as NixOS extraEntries so rebuilds update it
     cat > "$WORK_DIR/zz-clix-debug.conf" << EOF
 title CLIX (Debug - tty9 shell)
+sort-key zz-clix
 linux /EFI/nixos/kernel
 initrd /EFI/nixos/initrd
 options init=${system_path}/init root=LABEL=CLIX-ROOT rootwait rw systemd.debug_shell=1

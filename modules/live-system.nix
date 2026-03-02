@@ -177,6 +177,7 @@ CONFIGEOF
     loader.systemd-boot.extraEntries = {
       "zz-clix-debug.conf" = ''
         title CLIX (Debug - tty9 shell)
+        sort-key zz-clix
         linux __KERNEL__
         initrd __INITRD__
         options __OPTIONS__ systemd.debug_shell=1
