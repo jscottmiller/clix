@@ -172,36 +172,30 @@ CONFIGEOF
     loader.systemd-boot.sortKey = "clix";
     loader.efi.canTouchEfiVariables = false;
 
-    # Debug boot entry - declared here, paths filled in by extraInstallCommands
+    # Debug boot entry - generated from the latest generation entry
     # Enables systemd debug shell on tty9 (Ctrl+Alt+F9)
-    loader.systemd-boot.extraEntries = {
-      "clix-debug.conf" = ''
-        title CLIX (Debug - tty9 shell)
-        linux __KERNEL__
-        initrd __INITRD__
-        options __OPTIONS__ systemd.debug_shell=1
-      '';
-    };
-
-    # Fill in dynamic paths from the generated boot entry
+    # We generate this entirely in extraInstallCommands because:
+    # 1. The kernel/initrd paths aren't known until install time
+    # 2. sed -i doesn't work reliably on FAT32 (the ESP filesystem)
     loader.systemd-boot.extraInstallCommands = ''
       DEBUG_ENTRY="/boot/loader/entries/clix-debug.conf"
 
-      # Find the latest generation entry (any pattern)
+      # Find the latest generation entry
       LATEST=$(ls -t /boot/loader/entries/*generation*.conf 2>/dev/null | head -1)
 
-      if [ -n "$LATEST" ] && [ -f "$LATEST" ] && [ -f "$DEBUG_ENTRY" ]; then
+      if [ -n "$LATEST" ] && [ -f "$LATEST" ]; then
         # Extract paths from the generated entry
         KERNEL=$(grep '^linux' "$LATEST" | awk '{print $2}')
         INITRD=$(grep '^initrd' "$LATEST" | awk '{print $2}')
         OPTIONS=$(grep '^options' "$LATEST" | sed 's/^options //')
 
-        # Fill in the placeholders
-        sed -i \
-          -e "s|__KERNEL__|$KERNEL|" \
-          -e "s|__INITRD__|$INITRD|" \
-          -e "s|__OPTIONS__|$OPTIONS|" \
-          "$DEBUG_ENTRY"
+        # Generate the debug entry from scratch
+        cat > "$DEBUG_ENTRY" << EOF
+title CLIX (Debug - tty9 shell)
+linux $KERNEL
+initrd $INITRD
+options $OPTIONS systemd.debug_shell=1
+EOF
       fi
     '';
 
