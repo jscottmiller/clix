@@ -18,6 +18,16 @@ let
 
     sudo nixos-rebuild switch --flake /etc/nixos#clix
 
+    # Remove stale static boot entries from image build (if present)
+    # These point to unhashed kernel/initrd paths that no longer exist
+    # NixOS now manages boot entries via nixos-generation-*.conf
+    if [ -f /boot/loader/entries/clix.conf ]; then
+      sudo rm -f /boot/loader/entries/clix.conf
+      sudo rm -f /boot/loader/entries/clix-debug.conf
+      echo ""
+      echo "Cleaned up legacy boot entries."
+    fi
+
     echo ""
     echo "Rebuild complete!"
   '';

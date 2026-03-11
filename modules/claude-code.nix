@@ -171,8 +171,8 @@ let
     ```
 
     **When to use which:**
-    - `nix profile install` - Quick, simple packages (most CLI tools, apps)
-    - `edit-config` + `rebuild` - Packages needing system integration (Steam, Docker, etc.)
+    - `nix profile install` - Quick packages (survives reboots, but NOT CLIX updates)
+    - `edit-config` + `rebuild` - Permanent changes (survives reboots AND updates)
 
     **Special packages requiring system config:**
     Some packages need `programs.X.enable = true` in configuration.nix.
@@ -303,8 +303,11 @@ let
     - Stages the update for review (no changes applied yet)
     - `clix-apply` runs `nixos-rebuild switch` with the new version
     - If rebuild fails, automatic rollback to previous version
-    - Your `configuration.nix` customizations are preserved
     - Version comparison prevents downgrades (use `--branch` to override)
+
+    **Important:** Updates preserve ONLY `/etc/nixos/configuration.nix`. All other
+    system files are overwritten. Always put customizations in `configuration.nix`,
+    never edit the base modules directly.
 
     **Rollback:** NixOS generations provide rollback safety. If an update causes issues,
     reboot and select a previous generation from the boot menu, or run:
