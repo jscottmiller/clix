@@ -171,8 +171,8 @@ let
     ```
 
     **When to use which:**
-    - `nix profile install` - Quick, simple packages (most CLI tools, apps)
-    - `edit-config` + `rebuild` - Packages needing system integration (Steam, Docker, etc.)
+    - `nix profile install` - Quick packages (survives reboots, but NOT CLIX updates)
+    - `edit-config` + `rebuild` - Permanent changes (survives reboots AND updates)
 
     **Special packages requiring system config:**
     Some packages need `programs.X.enable = true` in configuration.nix.
@@ -278,6 +278,42 @@ let
 
     Keep entries concise. Focus on: user preferences, project context, learned patterns,
     unfinished tasks, and anything useful for future sessions.
+
+    ## System Updates
+
+    CLIX can be updated to new releases from GitHub:
+
+    ```bash
+    # Check for updates (downloads and shows diff)
+    sudo clix-update
+
+    # Review the changes, then apply when ready
+    sudo clix-apply
+
+    # Check current version
+    clix-version
+
+    # Update from a specific branch (for testing)
+    sudo clix-update --branch main
+    ```
+
+    **How it works:**
+    - `clix-update` checks GitHub releases for `jscottmiller/clix`
+    - Downloads the release and shows a diff of changed `.nix` files
+    - Stages the update for review (no changes applied yet)
+    - `clix-apply` runs `nixos-rebuild switch` with the new version
+    - If rebuild fails, automatic rollback to previous version
+    - Version comparison prevents downgrades (use `--branch` to override)
+
+    **Important:** Updates preserve ONLY `/etc/nixos/configuration.nix`. All other
+    system files are overwritten. Always put customizations in `configuration.nix`,
+    never edit the base modules directly.
+
+    **Rollback:** NixOS generations provide rollback safety. If an update causes issues,
+    reboot and select a previous generation from the boot menu, or run:
+    ```bash
+    sudo nixos-rebuild switch --rollback
+    ```
 
     ## Important Notes
 
