@@ -50,6 +50,7 @@ window#waybar {
 #memory,
 #network,
 #pulseaudio,
+#custom-keyboard,
 #tray {
     padding: 0 10px;
     margin: 0 4px;
@@ -122,6 +123,17 @@ window#waybar {
 #pulseaudio.muted {
     background-color: #44475a;
     color: #f8f8f2;
+}
+
+#custom-keyboard {
+    background-color: #ffb86c;
+    color: #282a36;
+    border-radius: 4px;
+    font-size: 15px;
+}
+
+#custom-keyboard:hover {
+    background-color: #f8f8f2;
 }
 
 #tray {

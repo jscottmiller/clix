@@ -6,7 +6,7 @@
 
     "modules-left": ["sway/workspaces", "sway/mode"],
     "modules-center": ["sway/window"],
-    "modules-right": ["cpu", "memory", "network", "pulseaudio", "battery", "clock", "tray"],
+    "modules-right": ["cpu", "memory", "network", "pulseaudio", "battery", "custom/keyboard", "clock", "tray"],
 
     "sway/workspaces": {
         "disable-scroll": true,
@@ -67,6 +67,12 @@
         "on-click": "pamixer -t",
         "on-scroll-up": "pamixer -i 5",
         "on-scroll-down": "pamixer -d 5"
+    },
+
+    "custom/keyboard": {
+        "format": "⌨",
+        "tooltip-format": "Toggle on-screen keyboard",
+        "on-click": "pkill -SIGRTMIN wvkbd-mobintl"
     },
 
     "tray": {
