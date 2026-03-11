@@ -40,20 +40,24 @@ Add to `/etc/nixos/configuration.nix`:
    exec wvkbd-mobintl --hidden
    ```
 
-5. Add toggle button to waybar. First, copy the config (it's a symlink by default):
+5. Add toggle button to waybar config.
+
+   **If you haven't customized waybar yet** (config is a symlink):
    ```bash
    cp --remove-destination /etc/xdg/waybar/config ~/.config/waybar/config
    cp --remove-destination /etc/xdg/waybar/style.css ~/.config/waybar/style.css
    ```
 
-   Edit `~/.config/waybar/config`:
+   **If you already have a custom config**, edit your existing files instead.
+
+   Edit `~/.config/waybar/config` and make these changes:
 
    In `modules-right`, add `"custom/keyboard"` where you want the button:
    ```json
    "modules-right": ["cpu", "memory", "network", "pulseaudio", "battery", "custom/keyboard", "clock", "tray"],
    ```
 
-   Add the module definition:
+   Add this module definition (inside the main JSON object, after other modules):
    ```json
    "custom/keyboard": {
        "format": "⌨",
@@ -62,7 +66,9 @@ Add to `/etc/nixos/configuration.nix`:
    },
    ```
 
-6. Add styling to `~/.config/waybar/style.css`:
+6. Add styling to `~/.config/waybar/style.css`.
+
+   Append this to the end of the file:
    ```css
    #custom-keyboard {
        background-color: #ffb86c;
