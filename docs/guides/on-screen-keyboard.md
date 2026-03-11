@@ -40,7 +40,13 @@ Add to `/etc/nixos/configuration.nix`:
    exec wvkbd-mobintl --hidden
    ```
 
-5. Add toggle button to waybar. Edit `~/.config/waybar/config`:
+5. Add toggle button to waybar. First, copy the config (it's a symlink by default):
+   ```bash
+   cp --remove-destination /etc/xdg/waybar/config ~/.config/waybar/config
+   cp --remove-destination /etc/xdg/waybar/style.css ~/.config/waybar/style.css
+   ```
+
+   Edit `~/.config/waybar/config`:
 
    In `modules-right`, add `"custom/keyboard"` where you want the button:
    ```json
@@ -72,10 +78,11 @@ Add to `/etc/nixos/configuration.nix`:
    }
    ```
 
-7. Reload sway to apply changes:
+7. Restart waybar to apply changes:
    ```bash
-   swaymsg reload
+   pkill waybar; swaymsg exec waybar
    ```
+   Note: `swaymsg reload` only reloads sway config, not waybar.
 
 ## Usage
 

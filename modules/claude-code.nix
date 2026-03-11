@@ -16,6 +16,13 @@ let
     - **User**: Custom (created at first boot, passwordless sudo enabled)
     - **Persistence**: Full - changes to the root filesystem persist across reboots
 
+    ## Guides
+
+    Before configuring any feature, UI element, or package, **always check
+    `/etc/nixos/docs/guides/` first**. These guides contain tested, step-by-step
+    instructions specific to CLIX. Read the index at `/etc/nixos/docs/guides/README.md`
+    to see what's available.
+
     ## Key Capabilities
 
     ### UI Interaction Tools
