@@ -278,13 +278,16 @@ let
 
     ```bash
     # Check for updates (downloads and shows diff)
-    clix-update
+    sudo clix-update
 
     # Review the changes, then apply when ready
-    clix-apply
+    sudo clix-apply
 
     # Check current version
     clix-version
+
+    # Update from a specific branch (for testing)
+    sudo clix-update --branch main
     ```
 
     **How it works:**
@@ -294,6 +297,7 @@ let
     - `clix-apply` runs `nixos-rebuild switch` with the new version
     - If rebuild fails, automatic rollback to previous version
     - Your `configuration.nix` customizations are preserved
+    - Version comparison prevents downgrades (use `--branch` to override)
 
     **Rollback:** NixOS generations provide rollback safety. If an update causes issues,
     reboot and select a previous generation from the boot menu, or run:

@@ -1,12 +1,10 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, clixVersion, ... }:
 
 # CLIX Update Module
 # Provides clix-update and clix-apply commands for manual updates from GitHub releases
 
 let
-  # Version string - this gets stamped at build time
-  # The first release should tag as v1.0.0
-  clixVersion = "v1.0.0";
+  # Version string passed from flake.nix (git rev or tag)
 
   updateDeps = with pkgs; [
     coreutils
@@ -16,6 +14,7 @@ let
     gzip
     diffutils
     gnused
+    gnugrep
   ];
 
   # Check for updates from GitHub releases
@@ -26,6 +25,36 @@ let
     CLIX_DIR="/var/lib/clix"
     VERSION_FILE="$CLIX_DIR/version"
     REPO="jscottmiller/clix"
+    BRANCH=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        --branch|-b)
+          BRANCH="$2"
+          shift 2
+          ;;
+        --help|-h)
+          echo "Usage: clix-update [OPTIONS]"
+          echo ""
+          echo "Options:"
+          echo "  --branch, -b <name>  Update from a branch instead of latest release"
+          echo "  --help, -h           Show this help"
+          exit 0
+          ;;
+        *)
+          echo "Unknown option: $1"
+          echo "Run 'clix-update --help' for usage"
+          exit 1
+          ;;
+      esac
+    done
+
+    # Check for root/sudo
+    if [ "$EUID" -ne 0 ]; then
+      echo "clix-update must be run as root (use sudo)"
+      exit 1
+    fi
 
     # Ensure clix directory exists
     if [ ! -d "$CLIX_DIR" ]; then
@@ -43,60 +72,93 @@ let
 
     echo "Current version: $current"
     echo ""
-    echo "Checking for updates..."
 
-    # Check latest release via GitHub API
-    api_response=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
+    # Version comparison function (returns 0 if $1 >= $2)
+    version_gte() {
+      # Strip 'v' prefix and compare
+      local v1="''${1#v}"
+      local v2="''${2#v}"
 
-    # Check for API errors
-    if echo "$api_response" | jq -e '.message' >/dev/null 2>&1; then
-      message=$(echo "$api_response" | jq -r '.message')
-      echo "GitHub API error: $message"
-      exit 1
-    fi
+      # Use sort -V for version comparison
+      local lower=$(printf '%s\n%s' "$v1" "$v2" | sort -V | head -n1)
+      [ "$lower" = "$v2" ]
+    }
 
-    latest=$(echo "$api_response" | jq -r '.tag_name')
+    if [ -n "$BRANCH" ]; then
+      # Branch mode
+      echo "Checking branch: $BRANCH"
 
-    if [ -z "$latest" ] || [ "$latest" = "null" ]; then
-      echo "No releases found for $REPO"
-      echo ""
-      echo "If this is a fresh install, the first release hasn't been published yet."
-      exit 0
-    fi
+      target="$BRANCH"
+      tarball_url="https://github.com/$REPO/archive/refs/heads/$BRANCH.tar.gz"
+      extracted_name="clix-$BRANCH"
+    else
+      # Release mode
+      echo "Checking for updates..."
 
-    if [ "$current" = "$latest" ]; then
-      echo ""
-      echo "CLIX is up to date ($current)"
-      exit 0
+      # Check latest release via GitHub API
+      api_response=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
+
+      # Check for API errors
+      if echo "$api_response" | jq -e '.message' >/dev/null 2>&1; then
+        message=$(echo "$api_response" | jq -r '.message')
+        echo "GitHub API error: $message"
+        exit 1
+      fi
+
+      latest=$(echo "$api_response" | jq -r '.tag_name')
+
+      if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+        echo "No releases found for $REPO"
+        echo ""
+        echo "If this is a fresh install, the first release hasn't been published yet."
+        exit 0
+      fi
+
+      if [ "$current" = "$latest" ]; then
+        echo ""
+        echo "CLIX is up to date ($current)"
+        exit 0
+      fi
+
+      # Check if this would be a downgrade
+      if [ "$current" != "unknown" ] && version_gte "$current" "$latest"; then
+        echo ""
+        echo "Latest release ($latest) is not newer than current version ($current)"
+        echo "Use --branch to update from a specific branch if needed."
+        exit 0
+      fi
+
+      target="$latest"
+      tarball_url="https://github.com/$REPO/archive/refs/tags/$latest.tar.gz"
+      # The extracted directory name removes the 'v' prefix from tag
+      extracted_name="clix-''${latest#v}"
     fi
 
     echo ""
-    echo "Update available: $current -> $latest"
+    echo "Update available: $current -> $target"
     echo ""
-    echo "Downloading release..."
+    echo "Downloading..."
 
     # Download and extract to temp location
     tmpdir=$(mktemp -d)
     trap "rm -rf $tmpdir" EXIT
 
-    tarball_url="https://github.com/$REPO/archive/refs/tags/$latest.tar.gz"
-
     if ! curl -sL "$tarball_url" | tar xz -C "$tmpdir"; then
-      echo "Error: Failed to download release tarball"
+      echo "Error: Failed to download tarball from $tarball_url"
       exit 1
     fi
 
-    # The extracted directory name removes the 'v' prefix from tag
-    extracted_dir="$tmpdir/clix-''${latest#v}"
+    extracted_dir="$tmpdir/$extracted_name"
 
     if [ ! -d "$extracted_dir" ]; then
       echo "Error: Expected directory $extracted_dir not found"
+      echo "Contents of temp dir:"
       ls -la "$tmpdir"
       exit 1
     fi
 
     echo ""
-    echo "=== Changes in $latest ==="
+    echo "=== Changes in $target ==="
     echo ""
 
     # Show diff between current repo and new version
@@ -127,19 +189,19 @@ let
     echo "==========================================="
     echo ""
     echo "Review the changes above."
-    echo "Run 'clix-apply' to install this update."
+    echo "Run 'sudo clix-apply' to install this update."
     echo ""
 
     # Stage the update
     rm -rf "$CLIX_DIR/staging"
     mv "$extracted_dir" "$CLIX_DIR/staging"
-    echo "$latest" > "$CLIX_DIR/staging-version"
+    echo "$target" > "$CLIX_DIR/staging-version"
 
     # Keep tmpdir cleanup from removing staging
     trap - EXIT
     rm -rf "$tmpdir"
 
-    echo "Update staged. Run 'clix-apply' when ready."
+    echo "Update staged. Run 'sudo clix-apply' when ready."
   '';
 
   # Apply a staged update
@@ -149,9 +211,15 @@ let
 
     CLIX_DIR="/var/lib/clix"
 
+    # Check for root/sudo
+    if [ "$EUID" -ne 0 ]; then
+      echo "clix-apply must be run as root (use sudo)"
+      exit 1
+    fi
+
     if [ ! -d "$CLIX_DIR/staging" ]; then
       echo "No staged update found."
-      echo "Run 'clix-update' first to check for updates."
+      echo "Run 'sudo clix-update' first to check for updates."
       exit 1
     fi
 
