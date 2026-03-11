@@ -194,7 +194,7 @@ nix profile remove obs-studio
 rebuild
 ```
 
-Some packages like Steam and Docker require system-level configuration. See `docs/packages/` for detailed guides.
+Some packages like Steam and Docker require system-level configuration. See `docs/guides/` for detailed guides.
 
 ## Project Structure
 

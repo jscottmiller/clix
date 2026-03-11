@@ -169,11 +169,11 @@ let
 
     **Special packages requiring system config:**
     Some packages need `programs.X.enable = true` in configuration.nix.
-    See `/etc/nixos/docs/packages/` for detailed guides (Steam, Docker, etc.).
+    See `/etc/nixos/docs/guides/` for detailed guides (Steam, Docker, etc.).
 
     Quick examples:
     ```nix
-    programs.steam.enable = true;       # Gaming (see docs/packages/steam.md)
+    programs.steam.enable = true;       # Gaming (see docs/guides/steam.md)
     virtualisation.docker.enable = true; # Containers
     ```
 

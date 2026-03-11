@@ -8,14 +8,14 @@ Thanks for your interest in contributing to CLIX! This document covers how to co
 
 The easiest way to contribute is adding package installation guides for software that requires special NixOS configuration.
 
-1. Create a new file in `docs/packages/<package-name>.md`
-2. Follow the template in `docs/packages/README.md`
+1. Create a new file in `docs/guides/<package-name>.md`
+2. Follow the template in `docs/guides/README.md`
 3. Include:
    - Why special configuration is needed
    - The exact NixOS configuration to add
    - Step-by-step installation instructions
    - Troubleshooting tips
-4. Update `docs/packages/README.md` with a link to your guide
+4. Update `docs/guides/README.md` with a link to your guide
 5. Submit a pull request
 
 ### Bug Reports
@@ -66,7 +66,7 @@ CLIX_MEMORY=8G CLIX_CPUS=4 ./scripts/test-vm.sh
 - `modules/` - NixOS modules that define the system
 - `config/` - Configuration files (sway, waybar, etc.)
 - `scripts/` - Build and utility scripts
-- `docs/packages/` - Package installation guides
+- `docs/guides/` - Package installation guides
 - `examples/` - Example configuration files
 
 ## Release Process
