@@ -101,6 +101,10 @@ in
       source = "${self}/modules/first-boot-setup.nix";
       mode = "0644";
     };
+    "nixos/modules/updates.nix" = {
+      source = "${self}/modules/updates.nix";
+      mode = "0644";
+    };
 
     # Config files referenced by modules
     "nixos/config/sway/config" = {

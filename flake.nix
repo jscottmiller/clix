@@ -21,6 +21,7 @@
         ./modules/data-partition.nix
         ./modules/encrypted-home.nix
         ./modules/first-boot-setup.nix
+        ./modules/updates.nix
       ];
     };
 

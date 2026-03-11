@@ -272,6 +272,35 @@ let
     Keep entries concise. Focus on: user preferences, project context, learned patterns,
     unfinished tasks, and anything useful for future sessions.
 
+    ## System Updates
+
+    CLIX can be updated to new releases from GitHub:
+
+    ```bash
+    # Check for updates (downloads and shows diff)
+    clix-update
+
+    # Review the changes, then apply when ready
+    clix-apply
+
+    # Check current version
+    clix-version
+    ```
+
+    **How it works:**
+    - `clix-update` checks GitHub releases for `jscottmiller/clix`
+    - Downloads the release and shows a diff of changed `.nix` files
+    - Stages the update for review (no changes applied yet)
+    - `clix-apply` runs `nixos-rebuild switch` with the new version
+    - If rebuild fails, automatic rollback to previous version
+    - Your `configuration.nix` customizations are preserved
+
+    **Rollback:** NixOS generations provide rollback safety. If an update causes issues,
+    reboot and select a previous generation from the boot menu, or run:
+    ```bash
+    sudo nixos-rebuild switch --rollback
+    ```
+
     ## Important Notes
 
     1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes
