@@ -121,12 +121,16 @@ in
     };
 
     # Package installation guides
-    "nixos/docs/packages/README.md" = {
-      source = "${self}/docs/packages/README.md";
+    "nixos/docs/guides/README.md" = {
+      source = "${self}/docs/guides/README.md";
       mode = "0644";
     };
-    "nixos/docs/packages/steam.md" = {
-      source = "${self}/docs/packages/steam.md";
+    "nixos/docs/guides/steam.md" = {
+      source = "${self}/docs/guides/steam.md";
+      mode = "0644";
+    };
+    "nixos/docs/guides/on-screen-keyboard.md" = {
+      source = "${self}/docs/guides/on-screen-keyboard.md";
       mode = "0644";
     };
   };
