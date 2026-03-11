@@ -241,10 +241,10 @@ let
     # Install staging as new repo
     mv "$CLIX_DIR/staging" "$CLIX_DIR/repo"
 
-    # The rebuild flake is at config/nixos/ - it imports user's configuration.nix
-    REBUILD_FLAKE="$CLIX_DIR/repo/config/nixos"
+    # Use repo root as the flake - it imports ./configuration.nix if present
+    REBUILD_FLAKE="$CLIX_DIR/repo"
 
-    # Preserve user's configuration.nix
+    # Preserve user's configuration.nix (copy to repo root)
     if [ -f /etc/nixos/configuration.nix ]; then
       cp /etc/nixos/configuration.nix "$REBUILD_FLAKE/configuration.nix"
     fi

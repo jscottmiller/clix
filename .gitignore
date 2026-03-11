@@ -2,3 +2,6 @@ result
 result-*
 .direnv/
 .claude/
+
+# User configuration - only exists during live rebuilds
+/configuration.nix

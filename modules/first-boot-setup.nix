@@ -423,6 +423,12 @@ let
       echo "95"
       echo "# Finalizing..."
 
+      # Remove stale static boot entries from image build
+      # These point to unhashed kernel/initrd paths that no longer exist
+      # NixOS now manages boot entries via nixos-generation-*.conf
+      rm -f /boot/loader/entries/clix.conf
+      rm -f /boot/loader/entries/clix-debug.conf
+
       # Note: We don't lock the setup user here.
       # After reboot, greetd will automatically use the new user
       # based on /etc/clix/user
