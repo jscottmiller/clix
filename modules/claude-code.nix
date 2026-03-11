@@ -19,8 +19,8 @@ let
     ## Guides
 
     Before configuring any feature, UI element, or package, **always check
-    `/etc/nixos/docs/packages/` first**. These guides contain tested, step-by-step
-    instructions specific to CLIX. Read the index at `/etc/nixos/docs/packages/README.md`
+    `/etc/nixos/docs/guides/` first**. These guides contain tested, step-by-step
+    instructions specific to CLIX. Read the index at `/etc/nixos/docs/guides/README.md`
     to see what's available.
 
     ## Key Capabilities
