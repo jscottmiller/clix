@@ -8,6 +8,7 @@ Guides for configuring packages and features that require special setup on NixOS
 - [Steam](steam.md) - Gaming platform with FHS sandbox requirements
 
 ### Features
+- [Auto-Rotate Display](auto-rotate.md) - Automatic screen rotation for 2-in-1 laptops
 - [On-Screen Keyboard](on-screen-keyboard.md) - Touch input with waybar toggle
 
 ## Contributing
