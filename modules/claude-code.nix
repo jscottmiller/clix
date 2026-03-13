@@ -23,6 +23,15 @@ let
     instructions specific to CLIX. Read the index at `/etc/nixos/docs/guides/README.md`
     to see what's available.
 
+    ## Web Research
+
+    When visiting an unfamiliar website for the first time (documentation, APIs,
+    tools, etc.), check for an `llms.txt` file at the site root (e.g.,
+    `https://example.com/llms.txt`). Many sites publish these files following the
+    llms.txt convention to provide LLM-friendly summaries of their content and
+    structure. Also check for `llms-full.txt` which may contain more detailed
+    context. Use this information to orient yourself before exploring further.
+
     ## Key Capabilities
 
     ### UI Interaction Tools
