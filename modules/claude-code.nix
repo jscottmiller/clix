@@ -324,6 +324,59 @@ let
     sudo nixos-rebuild switch --rollback
     ```
 
+    ## Contributing Improvements
+
+    CLIX ships with a contribution workflow via the CLIX-PUBLIC partition
+    (`/mnt/public`). When you discover bugs, workarounds, or improvements while
+    using the system, document them so they can be contributed back to the project.
+
+    ### Directory Structure
+
+    ```
+    /mnt/public/clix/
+      improvements/   # Bug fixes and workarounds applied to this system
+      guides/         # New feature guides (setup instructions for hardware, etc.)
+    ```
+
+    ### Writing an Improvement
+
+    When you fix a bug or work around a system issue, create a markdown file in
+    `/mnt/public/clix/improvements/`. Use this format:
+
+    ```markdown
+    # Short Title
+
+    ## Problem
+    What was broken or missing, and how it manifested.
+
+    ## Fix
+    What was changed and why. Include code snippets or config diffs.
+
+    ## Files Changed
+    - List of files modified with brief descriptions
+    ```
+
+    ### Writing a Guide
+
+    When you set up new hardware or configure a feature that requires special
+    steps on NixOS/CLIX, create a markdown file in `/mnt/public/clix/guides/`.
+    Follow the format used in `/etc/nixos/docs/guides/` (see the on-screen
+    keyboard guide for a good example). Include:
+
+    - Why special configuration is needed
+    - The exact NixOS configuration to add
+    - Step-by-step installation instructions
+    - Troubleshooting tips
+
+    ### Submitting Contributions
+
+    The CLIX-PUBLIC partition is a FAT32 partition readable from any OS. To
+    contribute improvements upstream:
+
+    1. Mount the CLIX USB on another computer
+    2. Copy files from `CLIX-PUBLIC/clix/improvements/` and `clix/guides/`
+    3. Submit them as pull requests to the CLIX GitHub repository
+
     ## Important Notes
 
     1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes
