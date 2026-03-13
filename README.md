@@ -196,6 +196,22 @@ rebuild
 
 Some packages like Steam and Docker require system-level configuration. See `docs/guides/` for detailed guides.
 
+### System Updates
+
+CLIX can update itself from GitHub releases:
+
+```bash
+sudo clix-update    # Check for updates, download and show diff
+sudo clix-apply     # Apply the staged update
+clix-version        # Show current version
+```
+
+Updates preserve only `/etc/nixos/configuration.nix`. Put all customizations there—other system files are overwritten. If an update causes issues, roll back via boot menu or:
+
+```bash
+sudo nixos-rebuild switch --rollback
+```
+
 ## Project Structure
 
 ```
@@ -214,7 +230,7 @@ clix/
 │   ├── sway/config           # Sway keybindings
 │   └── waybar/               # Status bar config
 ├── docs/
-│   └── packages/             # Package installation guides (Steam, etc.)
+│   └── guides/               # Setup guides (Steam, on-screen keyboard, etc.)
 ├── examples/                 # Example WiFi configs
 └── scripts/
     ├── build-image.sh        # Build disk image
