@@ -603,6 +603,10 @@ let
         fi
         echo "=== End Debug ===" >> "$DEBUG_LOG"
 
+        # Reload sway config now that encrypted home is mounted
+        # This picks up any user customizations in ~/.config/sway/config
+        ${pkgs.sway}/bin/swaymsg reload || true
+
         # Restart waybar so it picks up user config from ~/.config/waybar/
         pkill waybar || true
         swaymsg exec waybar
