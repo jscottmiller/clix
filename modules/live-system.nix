@@ -147,6 +147,10 @@ in
       source = "${self}/docs/guides/on-screen-keyboard.md";
       mode = "0644";
     };
+    "nixos/docs/guides/auto-rotate.md" = {
+      source = "${self}/docs/guides/auto-rotate.md";
+      mode = "0644";
+    };
   };
 
   # Create user configuration.nix on first boot (mutable, not managed by etc)
