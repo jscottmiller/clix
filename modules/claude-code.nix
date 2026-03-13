@@ -377,6 +377,20 @@ let
     2. Copy files from `CLIX-PUBLIC/clix/improvements/` and `clix/guides/`
     3. Submit them as pull requests to the CLIX GitHub repository
 
+    ## Home Directory Conventions
+
+    Use a standard directory layout instead of placing files directly in `~`:
+
+    - `~/Projects/` — code projects, cloned repos, development work
+    - `~/Documents/` — notes, docs, non-code files
+    - `~/Downloads/` — downloaded files
+    - `~/Pictures/` — images, screenshots
+    - `~/Scripts/` — standalone scripts and utilities
+
+    Create these directories as needed when the user's request naturally fits one.
+    For example, when asked to clone a repo or start a project, use `~/Projects/`.
+    When generating images or screenshots, use `~/Pictures/`.
+
     ## Important Notes
 
     1. **Persistent Storage**: Changes to the filesystem persist across reboots. This includes
