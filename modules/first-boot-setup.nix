@@ -602,6 +602,10 @@ let
           echo "No /etc/clix/user file found" >> "$DEBUG_LOG"
         fi
         echo "=== End Debug ===" >> "$DEBUG_LOG"
+
+        # Restart waybar so it picks up user config from ~/.config/waybar/
+        pkill waybar || true
+        swaymsg exec waybar
       fi
 
       # Start Claude terminal
