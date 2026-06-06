@@ -126,9 +126,12 @@
   # Passwordless sudo for wheel group (setup user and future user)
   security.sudo.wheelNeedsPassword = false;
 
-  # Ensure system PATH is available in all interactive shells (including TTY autologin)
+  # Ensure system PATH is available in all interactive shells (including TTY
+  # autologin) WITHOUT shadowing the setuid wrappers. /run/wrappers/bin must
+  # stay ahead of /run/current-system/sw/bin or sudo/ping/mount/su lose their
+  # setuid bit ("must be owned by uid 0 and have the setuid bit set").
   environment.interactiveShellInit = ''
-    export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:$PATH"
+    export PATH="/run/wrappers/bin:$PATH:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin"
   '';
 
   # Enable sound with pipewire
