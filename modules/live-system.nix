@@ -115,6 +115,10 @@ in
       source = "${self}/modules/updates.nix";
       mode = "0644";
     };
+    "nixos/modules/installer.nix" = {
+      source = "${self}/modules/installer.nix";
+      mode = "0644";
+    };
 
     # Config files referenced by modules
     "nixos/config/sway/config" = {
@@ -149,6 +153,10 @@ in
     };
     "nixos/docs/guides/auto-rotate.md" = {
       source = "${self}/docs/guides/auto-rotate.md";
+      mode = "0644";
+    };
+    "nixos/docs/guides/install-to-disk.md" = {
+      source = "${self}/docs/guides/install-to-disk.md";
       mode = "0644";
     };
   };

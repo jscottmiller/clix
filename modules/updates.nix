@@ -249,6 +249,14 @@ let
       cp /etc/nixos/configuration.nix "$REBUILD_FLAKE/configuration.nix"
     fi
 
+    # Preserve disk-install overrides written by clix-install. These pin the
+    # root and ESP filesystems by UUID; dropping them would make an installed
+    # system fall back to label-based mounts, which are ambiguous whenever a
+    # CLIX USB stick is also attached.
+    if [ -f /etc/nixos/installed-disk.nix ]; then
+      cp /etc/nixos/installed-disk.nix "$REBUILD_FLAKE/installed-disk.nix"
+    fi
+
     # Copy the lock file from current system to ensure reproducibility
     if [ -f /etc/nixos/flake.lock ]; then
       cp /etc/nixos/flake.lock "$REBUILD_FLAKE/flake.lock"

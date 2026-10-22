@@ -15,5 +15,6 @@
     ./modules/encrypted-home.nix
     ./modules/first-boot-setup.nix
     ./modules/updates.nix
+    ./modules/installer.nix
   ];
 }

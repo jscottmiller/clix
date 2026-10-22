@@ -9,6 +9,7 @@ Guides for configuring packages and features that require special setup on NixOS
 
 ### Features
 - [Auto-Rotate Display](auto-rotate.md) - Automatic screen rotation for 2-in-1 laptops
+- [Install to Disk](install-to-disk.md) - Move CLIX from USB onto an internal disk with `clix-install`
 - [On-Screen Keyboard](on-screen-keyboard.md) - Touch input with waybar toggle
 
 ## Contributing

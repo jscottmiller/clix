@@ -24,6 +24,13 @@
       ./modules/encrypted-home.nix
       ./modules/first-boot-setup.nix
       ./modules/updates.nix
+      ./modules/installer.nix
+    ];
+
+    # Disk-install overrides written by clix-install (UUID-pinned filesystems,
+    # EFI variable writes). Absent on USB images and fresh checkouts.
+    installedDisk = lib.optionals (builtins.pathExists ./installed-disk.nix) [
+      ./installed-disk.nix
     ];
 
     # User configuration - only included if it exists (for live rebuilds)
@@ -36,7 +43,7 @@
     nixosConfigurations.clix = nixpkgs.lib.nixosSystem {
       inherit system;
       specialArgs = { inherit self clixVersion; };
-      modules = clixModules ++ userConfig;
+      modules = clixModules ++ installedDisk ++ userConfig;
     };
 
     packages.${system} = {
