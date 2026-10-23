@@ -136,7 +136,7 @@ EOF
           fi
         '';
       in "${configScript}";
-      ExecStart = lib.mkForce "${pkgs.greetd.greetd}/bin/greetd --config /run/clix/greetd.toml";
+      ExecStart = lib.mkForce "${pkgs.greetd}/bin/greetd --config /run/clix/greetd.toml";
     };
   };
 
