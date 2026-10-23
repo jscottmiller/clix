@@ -1,8 +1,15 @@
-/* CLIX Waybar Style - Dracula-inspired dark theme */
+/* CLIX Waybar Style - Dracula-inspired dark theme
+ *
+ * Layout principle: modules live inside a small number of uniform "pills"
+ * instead of each having its own saturated background. Colour carries meaning
+ * rather than decoration -- a tinted icon identifies a metric, and a solid
+ * background means that metric needs attention right now. When every module is
+ * brightly coloured an alert has nothing to stand out against.
+ */
 
 * {
     font-family: "FiraCode Nerd Font", "Noto Sans", sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     min-height: 0;
 }
 
@@ -12,120 +19,156 @@ window#waybar {
     border-bottom: 2px solid #6272a4;
 }
 
+/* ---------------------------------------------------------------- left side */
+
 #workspaces button {
-    padding: 0 8px;
+    padding: 0 10px;
     background-color: transparent;
-    color: #f8f8f2;
+    color: #6272a4;
     border: none;
     border-radius: 0;
 }
 
 #workspaces button:hover {
     background: rgba(98, 114, 164, 0.4);
+    color: #f8f8f2;
 }
 
-#workspaces button.focused {
-    background-color: #6272a4;
+#workspaces button.focused,
+#workspaces button.visible {
+    background-color: transparent;
     color: #f8f8f2;
+    border-bottom: 2px solid #bd93f9;
 }
 
 #workspaces button.urgent {
     background-color: #ff5555;
+    color: #f8f8f2;
 }
 
 #mode {
     background-color: #ff79c6;
     color: #282a36;
-    padding: 0 10px;
+    padding: 0 12px;
+    border-radius: 7px;
+    margin: 5px 0;
     font-weight: bold;
 }
 
+/* Left aligned, so it needs its own gap from the workspace buttons; centred
+ * it was separated by the whole empty middle of the bar. */
 #window {
-    color: #bd93f9;
+    color: #6272a4;
+    padding: 0 12px;
 }
 
-#clock,
-#battery,
+/* Close button for the focused window. Muted at rest so it does not read as a
+ * warning on a bar where red means something is wrong, and red only on hover,
+ * at the point the click would actually destroy something. */
+#custom-close {
+    color: #6272a4;
+    padding: 0 10px;
+    margin: 5px 0;
+    border-radius: 5px;
+}
+
+#custom-close:hover {
+    background-color: #ff5555;
+    color: #f8f8f2;
+}
+
+/* -------------------------------------------------------------------- pills */
+
+/* The group containers. Both share one background so the bar reads as a couple
+ * of objects to scan rather than eight. */
+#system,
+#hardware {
+    background-color: rgba(68, 71, 90, 0.6);
+    border-radius: 7px;
+    margin: 5px 0;
+    padding: 0 2px;
+}
+
+/* Modules inside a pill are transparent; the pill provides the background. */
 #cpu,
 #memory,
+#custom-cputemp,
+#custom-gputemp,
 #network,
+#backlight,
 #pulseaudio,
-#tray {
+#battery {
+    background-color: transparent;
+    color: #f8f8f2;
     padding: 0 10px;
-    margin: 0 4px;
+    margin: 0;
+    border-radius: 5px;
 }
 
+/* ------------------------------------------------------------- sliders */
+
+/* Brightness and volume sliders, sized as touch targets rather than as
+ * decoration: this image runs on 2-in-1s where scrolling is not available.
+ * Tapping anywhere on the trough jumps to that value, so the usable area is
+ * the full width, not just the handle. */
+#backlight-slider,
+#pulseaudio-slider {
+    background-color: transparent;
+    min-width: 104px;
+    padding: 0 10px;
+    margin: 0;
+}
+
+#backlight-slider trough,
+#pulseaudio-slider trough {
+    min-height: 7px;
+    border-radius: 3px;
+    background-color: rgba(248, 248, 242, 0.25);
+}
+
+#backlight-slider highlight {
+    min-height: 7px;
+    border-radius: 3px;
+    background-color: #f1fa8c;
+}
+
+#pulseaudio-slider highlight {
+    min-height: 7px;
+    border-radius: 3px;
+    background-color: #8be9fd;
+}
+
+/* The handle is deliberately larger than it needs to be for a mouse, since a
+ * fingertip contact patch is roughly 9mm. It scales with the bar height: keep
+ * it a few px under, or the handle is clipped by the module's own padding. */
+#backlight-slider slider,
+#pulseaudio-slider slider {
+    min-width: 18px;
+    min-height: 18px;
+    border-radius: 50%;
+    background-color: #f8f8f2;
+    border: none;
+    box-shadow: none;
+}
+
+#backlight-slider slider:hover,
+#pulseaudio-slider slider:hover {
+    background-color: #ffffff;
+}
+
+/* The clock is the one coloured anchor, so the eye has a fixed landmark. */
 #clock {
     background-color: #6272a4;
     color: #f8f8f2;
-    border-radius: 4px;
-}
-
-#battery {
-    background-color: #50fa7b;
-    color: #282a36;
-    border-radius: 4px;
-}
-
-#battery.charging, #battery.plugged {
-    background-color: #50fa7b;
-    color: #282a36;
-}
-
-#battery.warning:not(.charging) {
-    background-color: #f1fa8c;
-    color: #282a36;
-}
-
-#battery.critical:not(.charging) {
-    background-color: #ff5555;
-    color: #f8f8f2;
-    animation: blink 0.5s linear infinite alternate;
-}
-
-@keyframes blink {
-    to {
-        background-color: #f8f8f2;
-        color: #ff5555;
-    }
-}
-
-#cpu {
-    background-color: #8be9fd;
-    color: #282a36;
-    border-radius: 4px;
-}
-
-#memory {
-    background-color: #ff79c6;
-    color: #282a36;
-    border-radius: 4px;
-}
-
-#network {
-    background-color: #bd93f9;
-    color: #282a36;
-    border-radius: 4px;
-}
-
-#network.disconnected {
-    background-color: #ff5555;
-    color: #f8f8f2;
-}
-
-#pulseaudio {
-    background-color: #f1fa8c;
-    color: #282a36;
-    border-radius: 4px;
-}
-
-#pulseaudio.muted {
-    background-color: #44475a;
-    color: #f8f8f2;
+    padding: 0 12px;
+    margin: 5px 0;
+    border-radius: 7px;
 }
 
 #tray {
     background-color: transparent;
+    padding: 0 8px;
+    margin: 5px 0;
 }
 
 #tray > .passive {
@@ -135,4 +178,53 @@ window#waybar {
 #tray > .needs-attention {
     -gtk-icon-effect: highlight;
     background-color: #ff5555;
+    border-radius: 5px;
+}
+
+/* ------------------------------------------------------------ alert states */
+
+/* A module in trouble takes a solid background inside its otherwise uniform
+ * pill. Because it is the only saturated thing in the bar, a glance finds it.
+ * Pango tints are dropped by the matching format-<state> strings in the config
+ * (and by clix-sensor for the temperature modules) so text stays readable. */
+
+#cpu.warning,
+#memory.warning,
+#custom-cputemp.warning,
+#custom-gputemp.warning,
+#battery.warning:not(.charging) {
+    background-color: #f1fa8c;
+    color: #282a36;
+    font-weight: bold;
+}
+
+#cpu.critical,
+#memory.critical,
+#custom-cputemp.critical,
+#custom-gputemp.critical,
+#battery.critical:not(.charging) {
+    background-color: #ff5555;
+    color: #f8f8f2;
+    font-weight: bold;
+}
+
+/* Only a battery about to die earns an animation. */
+#battery.critical:not(.charging) {
+    animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+    to {
+        background-color: #f8f8f2;
+        color: #ff5555;
+    }
+}
+
+#network.disconnected {
+    background-color: #ff5555;
+    color: #f8f8f2;
+}
+
+#pulseaudio.muted {
+    color: #6272a4;
 }

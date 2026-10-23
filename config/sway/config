@@ -188,6 +188,15 @@ bindsym $mod+Print exec grim -g "$(slurp)" - | wl-copy
 bindsym $mod+Escape exec pkill -SIGRTMIN wvkbd-mobintl
 
 # ─────────────────────────────────────────
+# Window Rules
+# ─────────────────────────────────────────
+
+# Waybar launches btop and nmtui as `foot -a floatterm`. Without a rule these
+# would tile and rearrange the workspace, which is jarring for something opened
+# by a click on the status bar and closed a moment later.
+for_window [app_id="floatterm"] floating enable, resize set 960 600, move position center
+
+# ─────────────────────────────────────────
 # Autostart
 # ─────────────────────────────────────────
 

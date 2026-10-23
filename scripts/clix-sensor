@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# clix-sensor - report a temperature sensor as waybar custom-module JSON
+#
+# Usage: clix-sensor cpu|gpu [--warn CELSIUS] [--crit CELSIUS]
+#
+# Why this exists rather than waybar's built-in `temperature` module:
+#
+#   * The built-in module needs either `thermal-zone N` or `hwmon-path`. Both
+#     are positional: thermal zone numbers and hwmonN numbers are assigned in
+#     probe order and are not stable across boots, let alone across machines.
+#     CLIX ships one waybar config to arbitrary hardware, so neither can be
+#     hardcoded.
+#   * Its default is thermal_zone0, which many AMD laptops do not expose at
+#     all (this was found on a Ryzen machine with zero thermal zones but a
+#     working k10temp hwmon).
+#
+# Matching on the hwmon `name` attribute is the portable way to find a sensor.
+# Emits nothing when no sensor is found, which makes waybar hide the module, so
+# machines without a readable sensor get no empty gap in the bar.
+#
+# Icons are built with printf escapes rather than written as literal characters.
+# Nerd Font glyphs sit in a Private Use Area that is easily stripped in transit
+# by editors and copy-paste, which turns an icon into an empty string without
+# any visible error; see the matching note in config/waybar/config.
+
+set -uo pipefail
+
+usage() {
+  cat <<'USAGEEOF'
+Usage: clix-sensor cpu|gpu [--warn CELSIUS] [--crit CELSIUS]
+
+Prints a temperature sensor reading as waybar custom-module JSON.
+
+  cpu              CPU package temperature (k10temp, coretemp, ...)
+  gpu              GPU temperature (amdgpu, i915, nouveau, ...)
+  --warn CELSIUS   at or above this, class is "warning" (cpu 80, gpu 75)
+  --crit CELSIUS   at or above this, class is "critical" (cpu 90, gpu 85)
+
+Sensors are matched by hwmon name rather than by index, because hwmon and
+thermal-zone numbering depends on probe order and is not stable. Prints
+nothing when the machine has no matching sensor, which hides the module.
+USAGEEOF
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+esac
+
+ROLE="${1:-}"
+shift || true
+
+WARN=""
+CRIT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --warn) WARN="${2:-}"; shift 2 ;;
+    --crit) CRIT="${2:-}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      echo "clix-sensor: unknown option: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Candidate hwmon names per role, most specific first. A machine matching none
+# of these gets no module rather than a wrong reading.
+case "$ROLE" in
+  cpu)
+    CANDIDATES="k10temp zenpower coretemp cpu_thermal acpitz"
+    ZONE_TYPES="x86_pkg_temp cpu-thermal cpu_thermal acpitz"
+    printf -v ICON '\uf2c9'   # thermometer-half
+    TINT="#ffb86c"
+    LABEL="CPU"
+    : "${WARN:=80}"
+    : "${CRIT:=90}"
+    ;;
+  gpu)
+    CANDIDATES="amdgpu i915 xe nouveau radeon"
+    ZONE_TYPES="GPU gpu-thermal"
+    printf -v ICON '\U000f08ae'   # expansion-card
+    TINT="#bd93f9"
+    LABEL="GPU"
+    : "${WARN:=75}"
+    : "${CRIT:=85}"
+    ;;
+  *)
+    echo "clix-sensor: first argument must be 'cpu' or 'gpu'" >&2
+    echo >&2
+    usage >&2
+    exit 1
+    ;;
+esac
+
+# Find a readable tempN_input under an hwmon device whose name matches, in
+# candidate order. Prefers temp1_input but accepts any temp input, since some
+# drivers start numbering above 1.
+SENSOR=""
+SENSOR_NAME=""
+for want in $CANDIDATES; do
+  for hw in /sys/class/hwmon/hwmon*; do
+    [ -r "$hw/name" ] || continue
+    [ "$(cat "$hw/name" 2>/dev/null)" = "$want" ] || continue
+    for input in "$hw"/temp*_input; do
+      [ -r "$input" ] || continue
+      SENSOR="$input"
+      SENSOR_NAME="$want"
+      break
+    done
+    [ -n "$SENSOR" ] && break
+  done
+  [ -n "$SENSOR" ] && break
+done
+
+# Fall back to a thermal zone whose type matches, for hardware with no usable
+# hwmon entry.
+if [ -z "$SENSOR" ]; then
+  for want in $ZONE_TYPES; do
+    for zone in /sys/class/thermal/thermal_zone*; do
+      [ -r "$zone/type" ] || continue
+      [ "$(cat "$zone/type" 2>/dev/null)" = "$want" ] || continue
+      [ -r "$zone/temp" ] || continue
+      SENSOR="$zone/temp"
+      SENSOR_NAME="$want"
+      break
+    done
+    [ -n "$SENSOR" ] && break
+  done
+fi
+
+# No sensor on this machine: print nothing so waybar hides the module.
+if [ -z "$SENSOR" ]; then
+  exit 0
+fi
+
+RAW="$(cat "$SENSOR" 2>/dev/null)"
+case "$RAW" in
+  ""|*[!0-9-]*)
+    # Unreadable or non-numeric (a sensor can disappear on suspend).
+    exit 0
+    ;;
+esac
+
+# hwmon and thermal both report millidegrees Celsius. Round rather than
+# truncate so 52.6 shows as 53.
+CELSIUS=$(( (RAW + 500) / 1000 ))
+
+CLASS="normal"
+if [ "$CELSIUS" -ge "$CRIT" ]; then
+  CLASS="critical"
+elif [ "$CELSIUS" -ge "$WARN" ]; then
+  CLASS="warning"
+fi
+
+# A driver-supplied label (Tctl, edge, ...) is worth showing in the tooltip:
+# it says what the number actually measures.
+DETAIL="$SENSOR_NAME"
+LABEL_FILE="${SENSOR%_input}_label"
+if [ -r "$LABEL_FILE" ]; then
+  DETAIL="$SENSOR_NAME/$(cat "$LABEL_FILE" 2>/dev/null)"
+fi
+
+# The icon tint is emitted here rather than set in the waybar config because a
+# custom module has only one `format` string -- unlike `battery`, it cannot
+# define a per-state format. Alert states drop the tint so the icon inherits the
+# high-contrast colour the stylesheet sets on the alert background.
+case "$CLASS" in
+  normal) ICON_MARKUP="<span color='$TINT'>$ICON</span>" ;;
+  *)      ICON_MARKUP="$ICON" ;;
+esac
+
+printf '{"text":"%s %s°","tooltip":"%s %s°C (%s)","class":"%s"}\n' \
+  "$ICON_MARKUP" "$CELSIUS" "$LABEL" "$CELSIUS" "$DETAIL" "$CLASS"

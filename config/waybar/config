@@ -1,12 +1,54 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 30,
-    "spacing": 4,
+    "height": 36,
+    "spacing": 7,
 
-    "modules-left": ["sway/workspaces", "sway/mode"],
-    "modules-center": ["sway/window"],
-    "modules-right": ["cpu", "memory", "network", "pulseaudio", "battery", "clock", "tray"],
+    // The window title sits in the left box rather than the centre one. Left
+    // aligned it starts at a fixed x, so the eye lands on it in the same place
+    // whatever its length, instead of the text sliding around the midpoint as
+    // windows change.
+    "modules-left": ["sway/workspaces", "sway/mode", "sway/window", "custom/close"],
+    "modules-center": [],
+    "modules-right": ["group/system", "group/hardware", "clock", "tray"],
+
+    // Modules are grouped into two "pills" rather than shown as eight separate
+    // coloured blocks. A uniform pill background means nothing competes for
+    // attention until a module actually enters a warning or critical state, at
+    // which point that one module takes a solid alert background and is the
+    // only saturated thing in the bar.
+    //
+    // Icons are written as \uXXXX JSON escapes, never as literal characters.
+    // Nerd Font icons live in the Basic Multilingual Plane Private Use Area
+    // (U+E000-U+F8FF), and that range is easily stripped in transit by editors,
+    // terminals and copy-paste, which silently turns an icon into an empty
+    // string. Every format string in this file previously began with a bare
+    // leading space for exactly that reason. Escapes are plain ASCII on disk,
+    // so they cannot be lost, and they document which glyph is intended.
+    //
+    // Icons are tinted per metric with Pango markup rather than CSS, because
+    // GTK styles the whole module label and cannot target the icon separately.
+    // Keep a tint distinct from the background it sits on -- a tint equal to
+    // the background renders the icon invisible.
+
+    "group/system": {
+        "orientation": "horizontal",
+        "modules": ["cpu", "memory", "custom/cputemp", "custom/gputemp"]
+    },
+
+    // Each of brightness and volume is a readout plus a slider. The readout
+    // carries the icon and percentage; the slider is the touch target, since
+    // scrolling needs a pointer device and this image is used on 2-in-1s.
+    // Tapping anywhere on a slider jumps to that value, and dragging tracks.
+    "group/hardware": {
+        "orientation": "horizontal",
+        "modules": [
+            "network",
+            "backlight", "backlight/slider",
+            "pulseaudio", "pulseaudio/slider",
+            "battery"
+        ]
+    },
 
     "sway/workspaces": {
         "disable-scroll": true,
@@ -22,21 +64,65 @@
         "max-length": 50
     },
 
+    // Closes the focused window, the same action as the Super+Shift+Q binding
+    // in config/sway/config. Present so the bar is usable on a 2-in-1 held as
+    // a tablet, where that chord is not available without the on-screen
+    // keyboard. The helper hides the button when no window is focused, so it
+    // never offers to close nothing. No `interval`: it runs in waybar's
+    // continuous mode, driven by sway's event stream.
+    "custom/close": {
+        "exec": "clix-close-button",
+        "return-type": "json",
+        "on-click": "swaymsg kill",
+        "restart-interval": 5
+    },
+
     "clock": {
-        "format": "{:%H:%M}",
-        "format-alt": "{:%Y-%m-%d %H:%M}",
+        "format": "<span color='#8be9fd'>\uf017</span> {:%H:%M}",
+        "format-alt": "<span color='#8be9fd'>\uf073</span> {:%a %d %b  %H:%M}",
         "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
     },
 
     "cpu": {
-        "format": " {usage}%",
-        "tooltip": true,
-        "interval": 2
+        "format": "<span color='#8be9fd'>\uf2db</span> {usage}%",
+        // Alert states repeat the format without the Pango tint, so the icon
+        // inherits the stylesheet's high-contrast colour instead of staying
+        // cyan on a yellow or red background.
+        "format-warning": "\uf2db {usage}%",
+        "format-critical": "\uf2db {usage}%",
+        "interval": 2,
+        "states": { "warning": 70, "critical": 90 },
+        "tooltip-format": "CPU {usage}%\nClick for btop",
+        "on-click": "foot -a floatterm btop"
     },
 
     "memory": {
-        "format": " {}%",
-        "tooltip-format": "{used:0.1f}G / {total:0.1f}G"
+        "format": "<span color='#ff79c6'>\uf1c0</span> {}%",
+        "format-warning": "\uf1c0 {}%",
+        "format-critical": "\uf1c0 {}%",
+        "interval": 5,
+        "states": { "warning": 80, "critical": 92 },
+        "tooltip-format": "{used:0.1f}G / {total:0.1f}G used\nClick for btop",
+        "on-click": "foot -a floatterm btop"
+    },
+
+    // Temperatures come from a helper rather than waybar's built-in
+    // `temperature` module: that module needs a thermal zone or hwmon index,
+    // and both are probe-order dependent, so neither can be hardcoded in a
+    // config shipped to arbitrary hardware. The helper matches on sensor name
+    // and prints nothing when a machine has no match, which hides the module.
+    "custom/cputemp": {
+        "exec": "clix-sensor cpu",
+        "return-type": "json",
+        "interval": 5,
+        "on-click": "foot -a floatterm btop"
+    },
+
+    "custom/gputemp": {
+        "exec": "clix-sensor gpu",
+        "return-type": "json",
+        "interval": 5,
+        "on-click": "foot -a floatterm btop"
     },
 
     "battery": {
@@ -44,33 +130,76 @@
             "warning": 30,
             "critical": 15
         },
-        "format": "{icon} {capacity}%",
-        "format-charging": " {capacity}%",
-        "format-plugged": " {capacity}%",
-        "format-icons": ["", "", "", "", ""]
+        "format": "<span color='#50fa7b'>{icon}</span> {capacity}%",
+        "format-charging": "<span color='#50fa7b'>\uf0e7</span> {capacity}%",
+        "format-plugged": "<span color='#50fa7b'>\uf1e6</span> {capacity}%",
+        // Warning and critical drop the Pango tint so the icon inherits the
+        // high-contrast colour the stylesheet sets on the alert background.
+        // Battery resolves format-{status}-{state} before format-{state}, so
+        // the discharging variants must be spelled out or the untinted format
+        // is never reached while on battery -- which is the only time these
+        // states can occur.
+        "format-discharging-warning": "{icon} {capacity}%",
+        "format-discharging-critical": "{icon} {capacity}%",
+        "format-warning": "{icon} {capacity}%",
+        "format-critical": "{icon} {capacity}%",
+        // Click to swap the percentage for the estimated time remaining.
+        "format-alt": "<span color='#50fa7b'>{icon}</span> {time}",
+        "format-icons": ["\uf244", "\uf243", "\uf242", "\uf241", "\uf240"],
+        "tooltip-format": "{capacity}%  ({power:0.1f}W)\n{timeTo}\nClick for time remaining"
+    },
+
+    "backlight": {
+        "format": "<span color='#f1fa8c'>{icon}</span> {percent}%",
+        "format-icons": ["\uf186", "\uf185"],
+        "tooltip-format": "Brightness {percent}%\nScroll to adjust",
+        "on-scroll-up": "brightnessctl set +5%",
+        "on-scroll-down": "brightnessctl set 5%-",
+        // Touchpads emit many small GDK_SCROLL_SMOOTH events per gesture, so
+        // without a threshold a single swipe runs the brightness end to end.
+        // waybar accumulates the deltas and only acts once they exceed this.
+        // Discrete mouse-wheel events take a different path in AModule and
+        // ignore the threshold, so a wheel stays one step per click.
+        "smooth-scrolling-threshold": 4
+    },
+
+    "backlight/slider": {
+        "min": 5,
+        "max": 100,
+        "orientation": "horizontal"
     },
 
     "network": {
-        "format-wifi": " {signalStrength}%",
-        "format-ethernet": " {ipaddr}",
-        "format-disconnected": "⚠ Offline",
-        "tooltip-format": "{ifname}: {ipaddr}/{cidr}",
-        "on-click": "nm-connection-editor"
+        "format-wifi": "<span color='#bd93f9'>\uf1eb</span> {signalStrength}%",
+        "format-ethernet": "<span color='#bd93f9'>\uf0e8</span> {ipaddr}",
+        "format-disconnected": "\uf127 offline",
+        "tooltip-format-wifi": "{essid}\n{ifname}: {ipaddr}/{cidr}\n{signalStrength}% signal\nClick for nmtui",
+        "tooltip-format-ethernet": "{ifname}: {ipaddr}/{cidr}\nClick for nmtui",
+        "tooltip-format-disconnected": "No connection\nClick for nmtui",
+        "on-click": "foot -a floatterm nmtui"
     },
 
     "pulseaudio": {
-        "format": "{icon} {volume}%",
-        "format-muted": " muted",
+        "format": "<span color='#8be9fd'>{icon}</span> {volume}%",
+        "format-muted": "\uf026 muted",
         "format-icons": {
-            "default": ["", "", ""]
+            "default": ["\uf026", "\uf027", "\uf028"]
         },
+        "tooltip-format": "{desc}\n{volume}%  -  scroll to adjust, click to mute",
         "on-click": "pamixer -t",
         "on-scroll-up": "pamixer -i 5",
-        "on-scroll-down": "pamixer -d 5"
+        "on-scroll-down": "pamixer -d 5",
+        "smooth-scrolling-threshold": 4
+    },
+
+    "pulseaudio/slider": {
+        "min": 0,
+        "max": 100,
+        "orientation": "horizontal"
     },
 
     "tray": {
-        "icon-size": 18,
+        "icon-size": 20,
         "spacing": 10
     }
 }
