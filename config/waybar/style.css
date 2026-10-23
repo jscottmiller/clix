@@ -9,7 +9,7 @@
 
 * {
     font-family: "FiraCode Nerd Font", "Noto Sans", sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     min-height: 0;
 }
 
@@ -22,7 +22,7 @@ window#waybar {
 /* ---------------------------------------------------------------- left side */
 
 #workspaces button {
-    padding: 0 8px;
+    padding: 0 10px;
     background-color: transparent;
     color: #6272a4;
     border: none;
@@ -49,9 +49,9 @@ window#waybar {
 #mode {
     background-color: #ff79c6;
     color: #282a36;
-    padding: 0 10px;
-    border-radius: 6px;
-    margin: 4px 0;
+    padding: 0 12px;
+    border-radius: 7px;
+    margin: 5px 0;
     font-weight: bold;
 }
 
@@ -66,8 +66,8 @@ window#waybar {
 #system,
 #hardware {
     background-color: rgba(68, 71, 90, 0.6);
-    border-radius: 6px;
-    margin: 4px 0;
+    border-radius: 7px;
+    margin: 5px 0;
     padding: 0 2px;
 }
 
@@ -82,7 +82,7 @@ window#waybar {
 #battery {
     background-color: transparent;
     color: #f8f8f2;
-    padding: 0 8px;
+    padding: 0 10px;
     margin: 0;
     border-radius: 5px;
 }
@@ -96,37 +96,37 @@ window#waybar {
 #backlight-slider,
 #pulseaudio-slider {
     background-color: transparent;
-    min-width: 90px;
-    padding: 0 8px;
+    min-width: 104px;
+    padding: 0 10px;
     margin: 0;
 }
 
 #backlight-slider trough,
 #pulseaudio-slider trough {
-    min-height: 6px;
+    min-height: 7px;
     border-radius: 3px;
     background-color: rgba(248, 248, 242, 0.25);
 }
 
 #backlight-slider highlight {
-    min-height: 6px;
+    min-height: 7px;
     border-radius: 3px;
     background-color: #f1fa8c;
 }
 
 #pulseaudio-slider highlight {
-    min-height: 6px;
+    min-height: 7px;
     border-radius: 3px;
     background-color: #8be9fd;
 }
 
-/* The handle is deliberately larger than it needs to be for a mouse. A
- * fingertip is roughly 9mm, and the bar is only 30px tall, so the handle is
- * the one part that can be grown without changing the bar height. */
+/* The handle is deliberately larger than it needs to be for a mouse, since a
+ * fingertip contact patch is roughly 9mm. It scales with the bar height: keep
+ * it a few px under, or the handle is clipped by the module's own padding. */
 #backlight-slider slider,
 #pulseaudio-slider slider {
-    min-width: 16px;
-    min-height: 16px;
+    min-width: 18px;
+    min-height: 18px;
     border-radius: 50%;
     background-color: #f8f8f2;
     border: none;
@@ -142,15 +142,15 @@ window#waybar {
 #clock {
     background-color: #6272a4;
     color: #f8f8f2;
-    padding: 0 10px;
-    margin: 4px 0;
-    border-radius: 6px;
+    padding: 0 12px;
+    margin: 5px 0;
+    border-radius: 7px;
 }
 
 #tray {
     background-color: transparent;
-    padding: 0 6px;
-    margin: 4px 0;
+    padding: 0 8px;
+    margin: 5px 0;
 }
 
 #tray > .passive {
