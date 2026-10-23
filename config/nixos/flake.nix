@@ -12,6 +12,11 @@
       modules = [
         ./base-configuration.nix
         ./configuration.nix
+      ]
+      # Disk-install overrides written by clix-install (UUID-pinned
+      # filesystems, EFI variable writes). Absent when running from USB.
+      ++ nixpkgs.lib.optionals (builtins.pathExists ./installed-disk.nix) [
+        ./installed-disk.nix
       ];
     };
   };
