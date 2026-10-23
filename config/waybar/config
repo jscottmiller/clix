@@ -32,9 +32,18 @@
         "modules": ["cpu", "memory", "custom/cputemp", "custom/gputemp"]
     },
 
+    // Each of brightness and volume is a readout plus a slider. The readout
+    // carries the icon and percentage; the slider is the touch target, since
+    // scrolling needs a pointer device and this image is used on 2-in-1s.
+    // Tapping anywhere on a slider jumps to that value, and dragging tracks.
     "group/hardware": {
         "orientation": "horizontal",
-        "modules": ["network", "backlight", "pulseaudio", "battery"]
+        "modules": [
+            "network",
+            "backlight", "backlight/slider",
+            "pulseaudio", "pulseaudio/slider",
+            "battery"
+        ]
     },
 
     "sway/workspaces": {
@@ -128,7 +137,19 @@
         "format-icons": ["\uf186", "\uf185"],
         "tooltip-format": "Brightness {percent}%\nScroll to adjust",
         "on-scroll-up": "brightnessctl set +5%",
-        "on-scroll-down": "brightnessctl set 5%-"
+        "on-scroll-down": "brightnessctl set 5%-",
+        // Touchpads emit many small GDK_SCROLL_SMOOTH events per gesture, so
+        // without a threshold a single swipe runs the brightness end to end.
+        // waybar accumulates the deltas and only acts once they exceed this.
+        // Discrete mouse-wheel events take a different path in AModule and
+        // ignore the threshold, so a wheel stays one step per click.
+        "smooth-scrolling-threshold": 4
+    },
+
+    "backlight/slider": {
+        "min": 5,
+        "max": 100,
+        "orientation": "horizontal"
     },
 
     "network": {
@@ -150,7 +171,14 @@
         "tooltip-format": "{desc}\n{volume}%  -  scroll to adjust, click to mute",
         "on-click": "pamixer -t",
         "on-scroll-up": "pamixer -i 5",
-        "on-scroll-down": "pamixer -d 5"
+        "on-scroll-down": "pamixer -d 5",
+        "smooth-scrolling-threshold": 4
+    },
+
+    "pulseaudio/slider": {
+        "min": 0,
+        "max": 100,
+        "orientation": "horizontal"
     },
 
     "tray": {

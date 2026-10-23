@@ -29,8 +29,8 @@ Per-metric identity comes from the icon tint rather than the background.
 | Module | Action |
 |---|---|
 | cpu, memory, temps | click opens `btop` in a floating terminal |
-| brightness | scroll to adjust (5% steps) |
-| volume | scroll to adjust, click to mute |
+| brightness | scroll to adjust (5% steps), or drag/tap its slider |
+| volume | scroll to adjust, click to mute, or drag/tap its slider |
 | network | click opens `nmtui` in a floating terminal |
 | battery | click swaps the percentage for time remaining |
 | clock | click swaps the time for the date |
@@ -41,6 +41,49 @@ has a `for_window` rule that floats and centres them.
 Brightness also responds to the `XF86MonBrightnessUp` / `Down` keys. Both the
 keys and the scroll action use `brightnessctl`, which works without root
 because the user is in the `video` group.
+
+### Touch
+
+Scrolling needs a pointer device, so brightness and volume each pair their
+readout with a `backlight/slider` / `pulseaudio/slider` module. These are
+GTK scale widgets: dragging the handle tracks, and tapping anywhere on the
+trough jumps to that value, which makes the whole width a touch target rather
+than just the handle.
+
+The sliders are horizontal because a vertical one is bounded by the bar height.
+At the default 30px that leaves approximately 26px of travel, which is not
+usable with a finger. `"orientation": "vertical"` is supported if the bar is
+made considerably taller.
+
+`backlight/slider` sets `"min": 5` rather than `0`, so a drag to the far end
+dims the display instead of switching it off entirely — recovering from a
+black screen means finding the brightness key.
+
+### Scroll sensitivity
+
+A touchpad emits many small `GDK_SCROLL_SMOOTH` events per gesture, so without
+a threshold one swipe across a module runs brightness or volume end to end.
+`smooth-scrolling-threshold` makes waybar accumulate the deltas and act only
+once they exceed it, so a larger number means a longer swipe per step:
+
+```json
+"backlight": {
+    "on-scroll-up": "brightnessctl set +5%",
+    "on-scroll-down": "brightnessctl set 5%-",
+    "smooth-scrolling-threshold": 4
+}
+```
+
+This only affects smooth scrolling. `AModule::getScrollDir` handles discrete
+`GDK_SCROLL_UP` / `GDK_SCROLL_DOWN` events on a separate path that ignores the
+threshold, so a mouse wheel stays at one step per click however high it is set.
+
+The other half of the sensitivity is the step size in the `on-scroll-*`
+command itself. Effective sensitivity is roughly step ÷ threshold, so change
+one or the other, not both at once, or the result overshoots into sluggish.
+
+Trackpad scrolling *everywhere else* is unrelated and lives in
+`config/sway/config` as `scroll_factor` under the `input` sections.
 
 ## Icons: always use escapes, never literal characters
 

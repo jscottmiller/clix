@@ -87,6 +87,57 @@ window#waybar {
     border-radius: 5px;
 }
 
+/* ------------------------------------------------------------- sliders */
+
+/* Brightness and volume sliders, sized as touch targets rather than as
+ * decoration: this image runs on 2-in-1s where scrolling is not available.
+ * Tapping anywhere on the trough jumps to that value, so the usable area is
+ * the full width, not just the handle. */
+#backlight-slider,
+#pulseaudio-slider {
+    background-color: transparent;
+    min-width: 90px;
+    padding: 0 8px;
+    margin: 0;
+}
+
+#backlight-slider trough,
+#pulseaudio-slider trough {
+    min-height: 6px;
+    border-radius: 3px;
+    background-color: rgba(248, 248, 242, 0.25);
+}
+
+#backlight-slider highlight {
+    min-height: 6px;
+    border-radius: 3px;
+    background-color: #f1fa8c;
+}
+
+#pulseaudio-slider highlight {
+    min-height: 6px;
+    border-radius: 3px;
+    background-color: #8be9fd;
+}
+
+/* The handle is deliberately larger than it needs to be for a mouse. A
+ * fingertip is roughly 9mm, and the bar is only 30px tall, so the handle is
+ * the one part that can be grown without changing the bar height. */
+#backlight-slider slider,
+#pulseaudio-slider slider {
+    min-width: 16px;
+    min-height: 16px;
+    border-radius: 50%;
+    background-color: #f8f8f2;
+    border: none;
+    box-shadow: none;
+}
+
+#backlight-slider slider:hover,
+#pulseaudio-slider slider:hover {
+    background-color: #ffffff;
+}
+
 /* The clock is the one coloured anchor, so the eye has a fixed landmark. */
 #clock {
     background-color: #6272a4;
