@@ -4,8 +4,12 @@
     "height": 36,
     "spacing": 7,
 
-    "modules-left": ["sway/workspaces", "sway/mode"],
-    "modules-center": ["sway/window"],
+    // The window title sits in the left box rather than the centre one. Left
+    // aligned it starts at a fixed x, so the eye lands on it in the same place
+    // whatever its length, instead of the text sliding around the midpoint as
+    // windows change.
+    "modules-left": ["sway/workspaces", "sway/mode", "sway/window", "custom/close"],
+    "modules-center": [],
     "modules-right": ["group/system", "group/hardware", "clock", "tray"],
 
     // Modules are grouped into two "pills" rather than shown as eight separate
@@ -58,6 +62,19 @@
 
     "sway/window": {
         "max-length": 50
+    },
+
+    // Closes the focused window, the same action as the Super+Shift+Q binding
+    // in config/sway/config. Present so the bar is usable on a 2-in-1 held as
+    // a tablet, where that chord is not available without the on-screen
+    // keyboard. The helper hides the button when no window is focused, so it
+    // never offers to close nothing. No `interval`: it runs in waybar's
+    // continuous mode, driven by sway's event stream.
+    "custom/close": {
+        "exec": "clix-close-button",
+        "return-type": "json",
+        "on-click": "swaymsg kill",
+        "restart-interval": 5
     },
 
     "clock": {

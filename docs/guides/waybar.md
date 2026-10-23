@@ -7,8 +7,11 @@ styling in `/etc/xdg/waybar/style.css`. Both come from the repo
 ## Layout
 
 ```
- 1 2 3        window title        ( system pill )( hardware pill )( clock ) tray
+ 1 2 3  window title  x        ( system pill )( hardware pill )( clock ) tray
 ```
+
+The window title is left aligned rather than centred, so it starts at a fixed
+x and the eye finds it in the same place whatever its length.
 
 | Pill | Modules |
 |---|---|
@@ -28,6 +31,7 @@ Per-metric identity comes from the icon tint rather than the background.
 
 | Module | Action |
 |---|---|
+| close button | click closes the focused window (same as `Super+Shift+Q`) |
 | cpu, memory, temps | click opens `btop` in a floating terminal |
 | brightness | scroll to adjust (5% steps), or drag/tap its slider |
 | volume | scroll to adjust, click to mute, or drag/tap its slider |
@@ -58,6 +62,25 @@ made considerably taller.
 `backlight/slider` sets `"min": 5` rather than `0`, so a drag to the far end
 dims the display instead of switching it off entirely — recovering from a
 black screen means finding the brightness key.
+
+### Close button
+
+`custom/close` sits beside the window title and runs `swaymsg kill`, the same
+action as the `Super+Shift+Q` binding. It exists because that chord is not
+reachable on a 2-in-1 held as a tablet without first summoning the on-screen
+keyboard.
+
+It is driven by `scripts/clix-close-button`, which subscribes to sway's
+`window` and `workspace` events rather than polling: a button that only changes
+when the focused window changes has no reason to wake up every second. It emits
+an empty string when nothing is focused, which hides the module, so the button
+never offers to close nothing. A focused *window* is told apart from a focused
+workspace by having a `pid` — checking `focused` alone matches the workspace
+itself on an empty one.
+
+The button is muted at rest and only turns red on hover, at the point a click
+would actually destroy something. On a touchscreen there is no hover state, so
+be aware it is a single tap with no confirmation.
 
 ### Scroll sensitivity
 

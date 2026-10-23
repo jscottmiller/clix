@@ -55,8 +55,26 @@ window#waybar {
     font-weight: bold;
 }
 
+/* Left aligned, so it needs its own gap from the workspace buttons; centred
+ * it was separated by the whole empty middle of the bar. */
 #window {
     color: #6272a4;
+    padding: 0 12px;
+}
+
+/* Close button for the focused window. Muted at rest so it does not read as a
+ * warning on a bar where red means something is wrong, and red only on hover,
+ * at the point the click would actually destroy something. */
+#custom-close {
+    color: #6272a4;
+    padding: 0 10px;
+    margin: 5px 0;
+    border-radius: 5px;
+}
+
+#custom-close:hover {
+    background-color: #ff5555;
+    color: #f8f8f2;
 }
 
 /* -------------------------------------------------------------------- pills */

@@ -9,6 +9,13 @@ let
     ${builtins.readFile "${self}/scripts/clix-sensor"}
   '';
 
+  # Close button for waybar's custom/close module. Same standalone-file
+  # treatment as clix-sensor above.
+  clixCloseButtonScript = pkgs.writeShellScriptBin "clix-close-button" ''
+    export PATH="${lib.makeBinPath (with pkgs; [ coreutils sway jq ])}:$PATH"
+    ${builtins.readFile "${self}/scripts/clix-close-button"}
+  '';
+
   # Script to unlock encrypted home with zenity
   unlockHomeScript = pkgs.writeShellScript "clix-unlock-home-gui" ''
     export PATH="${lib.makeBinPath (with pkgs; [ coreutils cryptsetup util-linux zenity glib ])}:$PATH"
@@ -173,6 +180,7 @@ EOF
       pamixer           # Audio control
       btop              # System monitor opened by the waybar system pill
       clixSensorScript  # Temperature readout for the waybar temp modules
+      clixCloseButtonScript  # Close button for the waybar window title
       networkmanagerapplet  # Network tray icon & nm-connection-editor
       polkit_gnome          # Polkit auth agent (needed for nm-applet)
       firefox           # Web browser for OAuth sign-in

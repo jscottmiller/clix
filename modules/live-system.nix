@@ -123,6 +123,10 @@ in
       source = "${self}/scripts/clix-sensor";
       mode = "0755";
     };
+    "nixos/scripts/clix-close-button" = {
+      source = "${self}/scripts/clix-close-button";
+      mode = "0755";
+    };
 
     # Config files referenced by modules
     "nixos/config/sway/config" = {

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# clix-close-button - waybar custom module: close the focused window
+#
+# Emits a close glyph while a window is focused and an empty string otherwise,
+# which makes waybar hide the module. Without that the button would sit alone
+# on an empty workspace next to a title that had already disappeared, offering
+# to close nothing.
+#
+# Driven by sway's event stream rather than a poll interval: a status bar
+# button that only changes when the focused window changes has no reason to
+# wake up every second. waybar runs a custom module with no `interval` in
+# continuous mode and reads a line at a time, so this stays running.
+#
+# The icon is built with printf rather than written literally; see the note in
+# config/waybar/config about Private Use Area characters being stripped.
+
+set -uo pipefail
+
+printf -v ICON '\uf00d'   # times
+
+# A focused *window* is distinguished from a focused workspace or output by
+# having a pid. Checking `focused` alone matches the workspace when a
+# workspace is empty, which is exactly the case this needs to exclude.
+has_window() {
+  swaymsg -t get_tree 2>/dev/null |
+    jq -e 'first(recurse(.nodes[]?, .floating_nodes[]?)
+                 | select(.focused == true and .pid != null))' >/dev/null 2>&1
+}
+
+emit() {
+  if has_window; then
+    printf '{"text":"%s","tooltip":"Close window  (Super+Shift+Q)"}\n' "$ICON"
+  else
+    printf '{"text":""}\n'
+  fi
+}
+
+emit
+
+# `window` covers focus changes, opens and closes; `workspace` covers switching
+# to an empty workspace, which changes nothing about any window but does change
+# whether anything is focused.
+swaymsg -t subscribe -m '["window","workspace"]' 2>/dev/null |
+  while IFS= read -r _; do
+    emit
+  done
