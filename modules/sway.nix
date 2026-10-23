@@ -1,6 +1,14 @@
 { config, pkgs, lib, self, ... }:
 
 let
+  # Temperature readout for waybar's custom/cputemp and custom/gputemp modules.
+  # Kept as a standalone file under scripts/ rather than inlined here so it can
+  # be run and shellchecked directly; the wrapper only pins its runtime PATH.
+  clixSensorScript = pkgs.writeShellScriptBin "clix-sensor" ''
+    export PATH="${lib.makeBinPath (with pkgs; [ coreutils ])}:$PATH"
+    ${builtins.readFile "${self}/scripts/clix-sensor"}
+  '';
+
   # Script to unlock encrypted home with zenity
   unlockHomeScript = pkgs.writeShellScript "clix-unlock-home-gui" ''
     export PATH="${lib.makeBinPath (with pkgs; [ coreutils cryptsetup util-linux zenity glib ])}:$PATH"
@@ -161,8 +169,10 @@ EOF
       grim              # Screenshots
       slurp             # Region selection
       wl-clipboard      # Clipboard
-      brightnessctl     # Brightness control
+      brightnessctl     # Brightness control (waybar backlight scroll, XF86 keys)
       pamixer           # Audio control
+      btop              # System monitor opened by the waybar system pill
+      clixSensorScript  # Temperature readout for the waybar temp modules
       networkmanagerapplet  # Network tray icon & nm-connection-editor
       polkit_gnome          # Polkit auth agent (needed for nm-applet)
       firefox           # Web browser for OAuth sign-in

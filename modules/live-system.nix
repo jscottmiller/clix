@@ -116,6 +116,14 @@ in
       mode = "0644";
     };
 
+    # Scripts referenced by modules. sway.nix reads scripts/clix-sensor via
+    # ${self}, so it has to exist under /etc/nixos for a rebuild from there to
+    # evaluate, the same way the module sources above do.
+    "nixos/scripts/clix-sensor" = {
+      source = "${self}/scripts/clix-sensor";
+      mode = "0755";
+    };
+
     # Config files referenced by modules
     "nixos/config/sway/config" = {
       source = "${self}/config/sway/config";
@@ -145,6 +153,10 @@ in
     };
     "nixos/docs/guides/on-screen-keyboard.md" = {
       source = "${self}/docs/guides/on-screen-keyboard.md";
+      mode = "0644";
+    };
+    "nixos/docs/guides/waybar.md" = {
+      source = "${self}/docs/guides/waybar.md";
       mode = "0644";
     };
     "nixos/docs/guides/auto-rotate.md" = {

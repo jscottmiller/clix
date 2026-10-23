@@ -10,6 +10,7 @@ Guides for configuring packages and features that require special setup on NixOS
 ### Features
 - [Auto-Rotate Display](auto-rotate.md) - Automatic screen rotation for 2-in-1 laptops
 - [On-Screen Keyboard](on-screen-keyboard.md) - Touch input with waybar toggle
+- [Waybar Status Bar](waybar.md) - Bar layout, icon escapes, temperature sensors
 
 ## Contributing
 
